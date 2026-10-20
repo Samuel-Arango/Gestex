@@ -1,0 +1,103 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block nav_home %}active{% endblock %}
+{% block page_title %}Inicio{% endblock %}
+
+{% block content %}
+<div class="cards-grid">
+
+  <article class="card card--blue">
+    <div class="card-top">
+      <div>
+        <p class="card-label">Telas en stock</p>
+        <p class="card-value">--</p>
+        <p class="card-trend text-muted">Pendiente de cargar datos</p>
+      </div>
+      <div class="card-icon">
+        <i class="bi bi-bag"></i>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span>Metros / Rollos</span>
+    </div>
+  </article>
+
+  <article class="card card--cyan">
+    <div class="card-top">
+      <div>
+        <p class="card-label">Hilos, Avíos y Botones</p>
+        <p class="card-value">--</p>
+        <p class="card-trend text-muted">Pendiente de cargar datos</p>
+      </div>
+      <div class="card-icon">
+        <i class="bi bi-scissors"></i>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span>Insumos de confección</span>
+    </div>
+  </article>
+
+  <article class="card card--orange">
+    <div class="card-top">
+      <div>
+        <p class="card-label">Productos terminados</p>
+        <p class="card-value">--</p>
+        <p class="card-trend text-muted">Pendiente de cargar datos</p>
+      </div>
+      <div class="card-icon">
+        <i class="bi bi-box-seam"></i>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span>Prendas / Lotes</span>
+    </div>
+  </article>
+
+  <article class="card card--red">
+    <div class="card-top">
+      <div>
+        <p class="card-label">Alertas de stock mínimo</p>
+        <p class="card-value">--</p>
+        <p class="card-trend text-danger">Sin alertas registradas</p>
+      </div>
+      <div class="card-icon">
+        <i class="bi bi-exclamation-triangle"></i>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span>Requiere reposición</span>
+    </div>
+  </article>
+
+</div>
+
+<section class="panel-grid">
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Movimientos recientes</h2>
+      <p class="panel-sub">Últimas entradas, salidas y movimientos en el taller</p>
+    </div>
+    <div class="panel-body empty-state">
+      <i class="bi bi-inbox"></i>
+      <p>No hay movimientos registrados aún</p>
+      <small>Registra compras, cortes o salidas desde el módulo de inventario.</small>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Órdenes de corte</h2>
+      <p class="panel-sub">Seguimiento de consumos de tela por referencia</p>
+    </div>
+    <div class="panel-body empty-state">
+      <i class="bi bi-journal-text"></i>
+      <p>No hay órdenes de corte registradas</p>
+      <small>Controla consumo de metros por lote o pedido.</small>
+    </div>
+  </div>
+
+</section>
+{% endblock %}

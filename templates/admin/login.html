@@ -1,0 +1,131 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if form.errors %}Error: {% endif %}Iniciar sesión | {{ site_title|default:"Gestex" }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body class="login-page">
+
+  <div class="login-shell">
+
+    <aside class="login-brand" aria-hidden="true">
+      <div class="brand-glow brand-glow--one"></div>
+      <div class="brand-glow brand-glow--two"></div>
+
+      <div class="brand-content">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 3 3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-4z"/>
+            <path d="M3 7h18"/>
+            <path d="M16 11a4 4 0 0 1-8 0"/>
+          </svg>
+        </div>
+
+        <p class="brand-name">Gestex</p>
+        <h1 class="brand-title">Gestión de Inventario para Talleres de Confección Textil</h1>
+
+        <ul class="brand-features">
+          <li>
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Control de telas, hilos, hilazas y accesorios de confeccion 
+          </li>
+          <li>
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Seguimiento de stock 
+          </li>
+          <li>
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Control de inventario y reportes
+          </li>
+        </ul>
+      </div>
+
+      <p class="brand-footer">&copy; {% now "Y" %} Gestex &middot; Acceso restringido al personal autorizado</p>
+    </aside>
+
+    <main class="login-main">
+      <div class="login-card">
+
+        <header class="login-header">
+        <span class="login-badge">Gestex</span>
+        <h2>Inicia sesión</h2>
+        <p class="login-sub">Accede al sistema de inventario y gestión de insumos para tu taller de confección textil.</p>
+        </header>
+
+        {% if form.errors and not form.non_field_errors %}
+          <div class="alert" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <p>Usuario o contraseña incorrectos. Por favor, verifica tus datos e inténtalo de nuevo.</p>
+          </div>
+        {% endif %}
+
+        {% for error in form.non_field_errors %}
+          <div class="alert" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <p>{{ error }}</p>
+          </div>
+        {% endfor %}
+
+        {% if user.is_authenticated %}
+          <div class="alert alert--warning" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            <p>Sesión iniciada como <strong>{{ user.get_username }}</strong>, pero no tienes autorización para acceder a esta página.</p>
+          </div>
+        {% endif %}
+
+        <form action="{{ app_path }}" method="post" id="login-form" novalidate>
+          {% csrf_token %}
+
+          <div class="field{% if form.username.errors %} field--invalid{% endif %}">
+            <label for="id_username">Usuario</label>
+            <div class="field-control">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              {{ form.username }}
+            </div>
+            {{ form.username.errors }}
+          </div>
+
+          <div class="field{% if form.password.errors %} field--invalid{% endif %}">
+            <label for="id_password">Contraseña</label>
+            <div class="field-control">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              {{ form.password }}
+            </div>
+            {{ form.password.errors }}
+          </div>
+
+          <input type="hidden" name="next" value="{{ next }}">
+
+          <button class="btn-submit" type="submit">
+            Ingresar al panel
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+
+        <footer class="login-footer">
+          <p>&iquest;Olvidaste tu contrase&ntilde;a? Solicita la restablecimiento al administrador del sistema.</p>
+        </footer>
+
+      </div>
+    </main>
+
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,134 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Dashboard | Gestex{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="dash-body">
+  <div class="dash-shell">
+
+    <!-- Sidebar -->
+    <aside class="dash-sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <a class="brand" href="{% url 'dashboard:home' %}">
+          <span class="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 3 3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-4z"/>
+              <path d="M3 7h18"/>
+              <path d="M16 11a4 4 0 0 1-8 0"/>
+            </svg>
+          </span>
+          <div class="brand-text">
+            <p class="brand-name">Gestex</p>
+            <p class="brand-sub">Confección Textil</p>
+          </div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <p class="nav-section">General</p>
+        <a class="nav-link {% block nav_home %}{% endblock %}" href="{% url 'dashboard:home' %}">
+          <i class="bi bi-speedometer2"></i>
+          <span>Dashboard</span>
+        </a>
+
+        <p class="nav-section">Inventario</p>
+        <a class="nav-link" href="#">
+          <i class="bi bi-bag"></i>
+          <span>Telas</span>
+        </a>
+        <a class="nav-link" href="#">
+          <i class="bi bi-scissors"></i>
+          <span>Hilos &amp; Avíos</span>
+        </a>
+        <a class="nav-link" href="#">
+          <i class="bi bi-box-seam"></i>
+          <span>Productos terminados</span>
+        </a>
+        <a class="nav-link" href="#">
+          <i class="bi bi-clipboard-data"></i>
+          <span>Stock por almacén</span>
+        </a>
+
+        <p class="nav-section">Movimientos</p>
+        <a class="nav-link" href="#">
+          <i class="bi bi-arrow-down-circle"></i>
+          <span>Compras / Entradas</span>
+        </a>
+        <a class="nav-link" href="#">
+          <i class="bi bi-arrow-up-circle"></i>
+          <span>Salidas / Consumo</span>
+        </a>
+        <a class="nav-link" href="#">
+          <i class="bi bi-journal-check"></i>
+          <span>Órdenes de corte</span>
+        </a>
+
+        <p class="nav-section">Administración</p>
+        <a class="nav-link" href="{% url 'admin:index' %}">
+          <i class="bi bi-gear"></i>
+          <span>Panel Django Admin</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-card">
+          <div class="user-avatar">{{ request.user.username|first|upper }}</div>
+          <div class="user-info">
+            <p class="user-name">{% firstof request.user.get_full_name request.user.username %}</p>
+            <p class="user-role">{% if request.user.is_superuser %}Administrador{% else %}Usuario{% endif %}</p>
+          </div>
+          <a class="user-logout" href="{% url 'admin:logout' %}" title="Cerrar sesión">
+            <i class="bi bi-box-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="dash-main">
+      <header class="dash-header">
+        <div class="header-left">
+          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Alternar menú">
+            <i class="bi bi-list"></i>
+          </button>
+          <div>
+            <p class="header-title">{% block page_title %}Dashboard{% endblock %}</p>
+            <p class="header-sub">Resumen general del taller de confección textil</p>
+          </div>
+        </div>
+        <div class="header-right">
+          <a class="header-btn" href="{% url 'admin:index' %}">
+            <i class="bi bi-sliders"></i>
+            <span>Configuración</span>
+          </a>
+          <a class="header-btn header-btn--primary" href="{% url 'admin:logout' %}">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Cerrar sesión</span>
+          </a>
+        </div>
+      </header>
+
+      <main class="dash-content">
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="dash-footer">
+        <p>&copy; {% now "Y" %} Gestex &middot; Plataforma de Gestión de Inventario para Talleres de Confección Textil</p>
+      </footer>
+    </div>
+
+  </div>
+
+  <script src="{% static 'js/dashboard.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
