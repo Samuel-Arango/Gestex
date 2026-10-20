@@ -86,9 +86,12 @@
             <p class="user-name">{% firstof request.user.get_full_name request.user.username %}</p>
             <p class="user-role">{% if request.user.is_superuser %}Administrador{% else %}Usuario{% endif %}</p>
           </div>
-          <a class="user-logout" href="{% url 'admin:logout' %}" title="Cerrar sesión">
-            <i class="bi bi-box-arrow-right"></i>
-          </a>
+          <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="user-logout" title="Cerrar sesión" style="border:none;background:transparent;padding:0;">
+              <i class="bi bi-box-arrow-right"></i>
+            </button>
+          </form>
         </div>
       </div>
     </aside>
@@ -110,10 +113,13 @@
             <i class="bi bi-sliders"></i>
             <span>Configuración</span>
           </a>
-          <a class="header-btn header-btn--primary" href="{% url 'admin:logout' %}">
+        <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
+          {% csrf_token %}
+          <button class="header-btn header-btn--primary" type="submit">
             <i class="bi bi-box-arrow-right"></i>
             <span>Cerrar sesión</span>
-          </a>
+          </button>
+        </form>
         </div>
       </header>
 

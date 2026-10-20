@@ -4,11 +4,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% if form.errors %}Error: {% endif %}Iniciar sesión | {{ site_title|default:"Gestex" }}</title>
+  <title>{% if form.errors %}Error: {% endif %}Iniciar sesión | Gestex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/login.css' %}">
+  <link rel="stylesheet" href="{% static 'css/login_accounts.css' %}">
 </head>
 <body class="login-page">
 
@@ -35,19 +35,19 @@
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
             </span>
-            Control de telas, hilos, hilazas y accesorios de confeccion 
+            Control de telas, hilos, avíos, botones y accesorios
           </li>
           <li>
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
             </span>
-            Seguimiento de stock 
+            Seguimiento de stock por metros, rollos, kilos o unidades
           </li>
           <li>
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
             </span>
-            Control de inventario y reportes
+            Compras, cortes, salidas y existencias en tiempo real
           </li>
         </ul>
       </div>
@@ -59,9 +59,9 @@
       <div class="login-card">
 
         <header class="login-header">
-        <span class="login-badge">Gestex</span>
-        <h2>Inicia sesión</h2>
-        <p class="login-sub">Accede al sistema de inventario y gestión de insumos para tu taller de confección textil.</p>
+          <span class="login-badge">Gestex</span>
+          <h2>Inicia sesión</h2>
+          <p class="login-sub">Accede al sistema de inventario y gestión del taller de confección textil.</p>
         </header>
 
         {% if form.errors and not form.non_field_errors %}
@@ -81,11 +81,11 @@
         {% if user.is_authenticated %}
           <div class="alert alert--warning" role="alert">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-            <p>Sesión iniciada como <strong>{{ user.get_username }}</strong>, pero no tienes autorización para acceder a esta página.</p>
+            <p>Ya tienes una sesión activa como <strong>{{ user.get_username }}</strong>. Puedes continuar al <a href="{% url 'dashboard:home' %}">dashboard</a>.</p>
           </div>
         {% endif %}
 
-        <form action="{{ app_path }}" method="post" id="login-form" novalidate>
+        <form action="{% url 'accounts:login' %}" method="post" id="login-form" novalidate>
           {% csrf_token %}
 
           <div class="field{% if form.username.errors %} field--invalid{% endif %}">
@@ -110,16 +110,16 @@
             {{ form.password.errors }}
           </div>
 
-          <input type="hidden" name="next" value="{{ next }}">
+          <input type="hidden" name="next" value="{{ next|default:'/' }}">
 
           <button class="btn-submit" type="submit">
-            Ingresar al panel
+            Ingresar al sistema
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </button>
         </form>
 
         <footer class="login-footer">
-          <p>&iquest;Olvidaste tu contrase&ntilde;a? Solicita la restablecimiento al administrador del sistema.</p>
+          <p>Soporte: consulta al administrador del sistema para recuperar tu acceso.</p>
         </footer>
 
       </div>
