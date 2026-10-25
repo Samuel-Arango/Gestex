@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crear cuenta | Gestex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/login_accounts.css' %}">
+  <link rel="stylesheet" href="{% static 'css/register_accounts.css' %}">
+</head>
+<body class="login-page">
+
+  <div class="login-shell">
+
+    <aside class="login-brand" aria-hidden="true">
+      <div class="brand-glow brand-glow--one"></div>
+      <div class="brand-glow brand-glow--two"></div>
+
+      <div class="brand-content">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 3 3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-4z"/>
+            <path d="M3 7h18"/>
+            <path d="M16 11a4 4 0 0 1-8 0"/>
+          </svg>
+        </div>
+
+        <p class="brand-name">Gestex</p>
+        <h1 class="brand-title">Crea tu cuenta y organiza el inventario de tu taller</h1>
+
+        <ul class="brand-features">
+          <li>
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Registro rápido, sin costo para talleres unipersonales
+          </li>
+          <li>
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Tus datos protegidos con contraseña cifrada
+          </li>
+          <li>
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Accede al dashboard con telas, hilos y avíos en un solo lugar
+          </li>
+        </ul>
+      </div>
+
+      <p class="brand-footer">&copy; {% now "Y" %} Gestex &middot; Plataforma para talleres de confección textil</p>
+    </aside>
+
+    <main class="login-main">
+      <div class="login-card register-card">
+
+        <header class="login-header">
+          <span class="login-badge">Nuevo usuario</span>
+          <h2>Crear cuenta</h2>
+          <p class="login-sub">Completa el formulario para registrarte y empezar a gestionar tu taller.</p>
+        </header>
+
+        <!-- Mensaje de error general (se mostrará cuando exista lógica de backend) -->
+        <div class="alert" id="form-alert" role="alert" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          <p id="form-alert-text">Revisa los campos marcados en rojo.</p>
+        </div>
+
+        <form action="{% url 'accounts:register' %}" method="post" id="register-form" novalidate>
+          {% csrf_token %}
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="reg-full-name">Nombre completo</label>
+              <div class="field-control">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <input type="text" id="reg-full-name" name="full_name" placeholder="Ej. María Pérez" autocomplete="name" required>
+              </div>
+              <p class="field__error" data-error-for="reg-full-name" hidden>Ingresa tu nombre completo.</p>
+            </div>
+
+            <div class="field">
+              <label for="reg-workshop">Nombre del taller</label>
+              <div class="field-control">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3 3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-4z"/><path d="M3 7h18"/></svg>
+                <input type="text" id="reg-workshop" name="workshop_name" placeholder="Ej. Confecciones Luna" autocomplete="organization" required>
+              </div>
+              <p class="field__error" data-error-for="reg-workshop" hidden>Ingresa el nombre de tu taller.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="reg-email">Correo electrónico</label>
+            <div class="field-control">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+              <input type="email" id="reg-email" name="email" placeholder="correo@ejemplo.com" autocomplete="email" required>
+            </div>
+            <p class="field__error" data-error-for="reg-email" hidden>Ingresa un correo electrónico válido.</p>
+          </div>
+
+          <div class="field">
+            <label for="reg-username">Nombre de usuario</label>
+            <div class="field-control">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.9 7.9"/></svg>
+              <input type="text" id="reg-username" name="username" placeholder="Ej. maria.taller" autocomplete="username" required>
+            </div>
+            <p class="field__hint">Solo letras, números y los símbolos @ . + - _</p>
+            <p class="field__error" data-error-for="reg-username" hidden>Ingresa un nombre de usuario válido.</p>
+          </div>
+
+          <div class="field">
+            <label for="reg-password">Contraseña</label>
+            <div class="field-control">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="reg-password" name="password1" placeholder="Mínimo 8 caracteres" autocomplete="new-password" minlength="8" required>
+              <button type="button" class="toggle-password" data-toggle-for="reg-password" aria-label="Mostrar contraseña">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="strength" aria-live="polite">
+              <div class="strength__bars">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <p class="strength__text" id="strength-text">Usa mayúsculas, números y símbolos</p>
+            </div>
+            <p class="field__error" data-error-for="reg-password" hidden>La contraseña debe tener al menos 8 caracteres.</p>
+          </div>
+
+          <div class="field">
+            <label for="reg-password-confirm">Confirmar contraseña</label>
+            <div class="field-control">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="reg-password-confirm" name="password2" placeholder="Repite la contraseña" autocomplete="new-password" required>
+              <button type="button" class="toggle-password" data-toggle-for="reg-password-confirm" aria-label="Mostrar contraseña">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <p class="field__error" data-error-for="reg-password-confirm" hidden>Las contraseñas no coinciden.</p>
+          </div>
+
+          <button class="btn-submit" type="submit">
+            Crear cuenta
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+
+        <p class="login-switch">
+          ¿Ya tienes cuenta? <a href="{% url 'accounts:login' %}">Inicia sesión</a>
+        </p>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="{% static 'js/register_accounts.js' %}"></script>
+</body>
+</html>
