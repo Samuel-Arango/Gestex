@@ -245,6 +245,12 @@ body.login-page {
   font-weight: 600;
 }
 
+.alert--success {
+  background: #ecfdf3;
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #166534;
+}
+
 .alert--warning {
   background: #fff6e5;
   border-color: rgba(245, 158, 11, 0.45);

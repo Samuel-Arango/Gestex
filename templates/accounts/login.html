@@ -64,6 +64,13 @@
           <p class="login-sub">Accede al sistema de inventario y gestión del taller de confección textil.</p>
         </header>
 
+        {% for message in messages %}
+          <div class="alert alert--success" role="status">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <p>{{ message }}</p>
+          </div>
+        {% endfor %}
+
         {% if form.errors and not form.non_field_errors %}
           <div class="alert" role="alert">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
@@ -83,7 +90,7 @@
           {% csrf_token %}
 
           <div class="field{% if form.username.errors %} field--invalid{% endif %}">
-            <label for="id_username">Usuario</label>
+            <label for="id_username">Correo electrónico</label>
             <div class="field-control">
               <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -115,11 +122,6 @@
         <p class="login-switch">
           ¿Aún no tienes cuenta? <a href="{% url 'accounts:register' %}">Regístrate aquí</a>
         </p>
-
-        <footer class="login-footer">
-          <p>Soporte: consulta al administrador del sistema para recuperar tu acceso.</p>
-        </footer>
-
       </div>
     </main>
 

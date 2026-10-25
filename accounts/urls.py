@@ -1,19 +1,13 @@
+from django.contrib.auth.views import LogoutView
 from django.urls import path
-from django.contrib.auth import views as auth_views
-from django.views.generic import TemplateView
+
+from . import views
 
 app_name = 'accounts'
 
 urlpatterns = [
-    path('login/', auth_views.LoginView.as_view(
-        template_name='accounts/login.html',
-        redirect_authenticated_user=True,
-    ), name='login'),
-    # Solo renderiza la plantilla; la lógica de registro se añadirá después.
-    path('registro/', TemplateView.as_view(
-        template_name='accounts/register.html',
-    ), name='register'),
-    path('logout/', auth_views.LogoutView.as_view(
-        next_page='accounts:login',
-    ), name='logout'),
+    path('login/', views.InicioSesionView.as_view(), name='login'),
+    path('registro/', views.registro, name='register'),
+    # Solo acepta POST (Django 5+): evita cierres de sesión forzados por enlaces externos.
+    path('logout/', LogoutView.as_view(next_page='accounts:login'), name='logout'),
 ]

@@ -10,22 +10,37 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
+def _env_bool(nombre, por_defecto=False):
+    valor = os.environ.get(nombre)
+    if valor is None:
+        return por_defecto
+    return valor.strip().lower() in ('1', 'true', 'yes', 'on')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-*(52h3(@0@pq_hg&lm@k90jlgxdr&88zr6c4vq!ls_oc6+%tqe'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# SECURITY WARNING: en producción define DJANGO_DEBUG=0 y DJANGO_SECRET_KEY.
+DEBUG = _env_bool('DJANGO_DEBUG', por_defecto=True)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('Define la variable de entorno DJANGO_SECRET_KEY.')
+    # Clave solo para desarrollo local; nunca se usa con DEBUG desactivado.
+    SECRET_KEY = 'dev-only-insecure-key-cambiar-en-produccion-0123456789abcdef'
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if h.strip()
+]
 
 
 # Application definition
@@ -41,6 +56,29 @@ INSTALLED_APPS = [
     'accounts',
 ]
 
+# ---------------------------------------------------------------------------
+# Seguridad de sesiones y cookies
+# ---------------------------------------------------------------------------
+SESSION_COOKIE_HTTPONLY = True          # El JavaScript no puede leer la cookie de sesión.
+SESSION_COOKIE_SAMESITE = 'Lax'         # Mitiga CSRF entre sitios.
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 60 * 60 * 8        # 8 horas como máximo.
+X_FRAME_OPTIONS = 'DENY'                # Evita clickjacking.
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Límite de intentos de inicio de sesión (fuerza bruta).
+LOGIN_MAX_INTENTOS = 5
+LOGIN_BLOQUEO_SEGUNDOS = 15 * 60
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -52,6 +90,15 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+# Usuario personalizado (tabla Usuarios). Debe definirse antes de la primera migración.
+AUTH_USER_MODEL = 'accounts.Usuario'
+
+# Argon2 como hasher principal; PBKDF2 se mantiene para validar hashes antiguos.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
 
 TEMPLATES = [
     {
@@ -88,6 +135,7 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'OPTIONS': {'user_attributes': ('nombre', 'correo')},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
@@ -131,8 +179,20 @@ LOGOUT_REDIRECT_URL = 'accounts:login'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+if DEBUG:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
+else:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'HOST': os.environ.get('EMAIL_HOST', ''),
+            'PORT': int(os.environ.get('EMAIL_PORT', '587')),
+            'USE_TLS': True,
+            'HOST_USER': os.environ.get('EMAIL_HOST_USER', ''),
+            'HOST_PASSWORD': os.environ.get('EMAIL_HOST_PASSWORD', ''),
+        },
+    }

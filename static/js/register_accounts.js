@@ -1,8 +1,9 @@
 /*
- * Comportamiento visual del formulario de registro.
+ * Comportamiento del formulario de registro (solo interfaz).
+ * La validación real se hace en el servidor (accounts/forms.py); esto mejora la experiencia.
  * - Mostrar / ocultar contraseña
  * - Medidor de fortaleza
- * - Validación del formulario en el cliente (sin lógica de backend)
+ * - Validación en vivo y al enviar
  */
 (function () {
   'use strict';
@@ -10,15 +11,15 @@
   const form = document.getElementById('register-form');
   if (!form) return;
 
-  const password = document.getElementById('reg-password');
-  const confirm = document.getElementById('reg-password-confirm');
+  const password = document.getElementById('id_password1');
+  const confirm = document.getElementById('id_password2');
   const strength = document.querySelector('.strength');
   const strengthText = document.getElementById('strength-text');
   const alertBox = document.getElementById('form-alert');
   const alertText = document.getElementById('form-alert-text');
 
-  const labels = ['', 'Muy débil', 'Débil', 'Buena', 'Excelente'];
-  const tips = [
+  const niveles = ['', 'Muy débil', 'Débil', 'Buena', 'Excelente'];
+  const consejos = [
     'Usa mayúsculas, números y símbolos',
     'Agrega mayúsculas, números o símbolos',
     'Casi lista, agrega un símbolo',
@@ -29,99 +30,90 @@
   document.querySelectorAll('.toggle-password').forEach((btn) => {
     btn.addEventListener('click', () => {
       const input = document.getElementById(btn.dataset.toggleFor);
-      const show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      btn.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
-      btn.classList.toggle('is-active', show);
+      const mostrar = input.type === 'password';
+      input.type = mostrar ? 'text' : 'password';
+      btn.setAttribute('aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      btn.classList.toggle('is-active', mostrar);
     });
   });
 
-  // Puntaje de fortaleza (0-4)
-  function scorePassword(value) {
-    let score = 0;
-    if (value.length >= 8) score++;
-    if (value.length >= 12) score++;
-    if (/[A-Z]/.test(value) && /[a-z]/.test(value)) score++;
-    if (/\d/.test(value) && /[^A-Za-z0-9]/.test(value)) score++;
-    return Math.min(score, 4);
+  // Puntaje de fortaleza (1-4)
+  function puntuar(valor) {
+    let puntos = 0;
+    if (valor.length >= 8) puntos++;
+    if (valor.length >= 12) puntos++;
+    if (/[A-Z]/.test(valor) && /[a-z]/.test(valor)) puntos++;
+    if (/\d/.test(valor) && /[^A-Za-z0-9]/.test(valor)) puntos++;
+    return Math.min(puntos, 4);
   }
 
-  function updateStrength() {
-    const value = password.value;
-    if (!value) {
+  function actualizarFortaleza() {
+    const valor = password.value;
+    if (!valor) {
       strength.removeAttribute('data-level');
-      strengthText.textContent = tips[0];
+      strengthText.textContent = consejos[0];
       return;
     }
-    const level = Math.max(1, scorePassword(value));
-    strength.dataset.level = level;
-    strengthText.textContent = `${labels[level]}. ${tips[level - 1]}`;
+    const nivel = Math.max(1, puntuar(valor));
+    strength.dataset.level = nivel;
+    strengthText.textContent = `${niveles[nivel]}. ${consejos[nivel - 1]}`;
   }
 
-  // Errores por campo
-  function setError(id, show) {
+  function marcarError(id, mostrar) {
     const input = document.getElementById(id);
-    const msg = document.querySelector(`[data-error-for="${id}"]`);
-    if (msg) msg.hidden = !show;
-    if (input) {
-      const field = input.closest('.field');
-      if (field) field.classList.toggle('field--invalid', show);
-    }
-    return show;
+    const mensaje = document.querySelector(`[data-error-for="${id}"]`);
+    if (mensaje) mensaje.hidden = !mostrar;
+    const campo = input && input.closest('.field');
+    if (campo) campo.classList.toggle('field--invalid', mostrar);
+    return mostrar;
   }
 
-  function validateField(id) {
+  function validarCampo(id) {
     const input = document.getElementById(id);
     if (!input) return true;
 
     switch (id) {
-      case 'reg-password':
-        return setError(id, input.value.length < 8);
-      case 'reg-password-confirm':
-        return setError(id, input.value !== password.value || !input.value);
-      case 'reg-email':
-        return setError(id, !input.checkValidity());
-      case 'reg-username':
-        return setError(id, !/^[\w.@+-]+$/.test(input.value));
+      case 'id_password1':
+        return marcarError(id, input.value.length < 8);
+      case 'id_password2':
+        return marcarError(id, !input.value || input.value !== password.value);
+      case 'id_correo':
+        return marcarError(id, !input.checkValidity());
+      case 'id_nombre':
+        return marcarError(id, input.value.trim().length < 3);
       default:
-        return setError(id, !input.value.trim());
+        return marcarError(id, !input.value.trim());
     }
   }
 
-  // Validación en vivo tras interactuar con el campo
-  form.querySelectorAll('input').forEach((input) => {
+  const campos = ['id_nombre', 'id_correo', 'id_password1', 'id_password2'];
+
+  campos.forEach((id) => {
+    const input = document.getElementById(id);
+    if (!input) return;
     input.addEventListener('blur', () => {
-      if (input.value) validateField(input.id);
+      if (input.value) validarCampo(id);
     });
     input.addEventListener('input', () => {
-      if (input.id === 'reg-password') {
-        updateStrength();
-        if (confirm.value) validateField('reg-password-confirm');
+      if (id === 'id_password1') {
+        actualizarFortaleza();
+        if (confirm.value) validarCampo('id_password2');
       }
-      if (document.querySelector(`[data-error-for="${input.id}"]:not([hidden])`)) {
-        validateField(input.id);
+      if (document.querySelector(`[data-error-for="${id}"]:not([hidden])`)) {
+        validarCampo(id);
       }
     });
   });
 
   form.addEventListener('submit', (e) => {
-    const ids = [
-      'reg-full-name',
-      'reg-workshop',
-      'reg-email',
-      'reg-username',
-      'reg-password',
-      'reg-password-confirm',
-    ];
+    const errores = campos.map(validarCampo).filter(Boolean).length;
 
-    const invalid = ids.map(validateField).filter(Boolean).length;
-
-    if (invalid > 0) {
+    if (errores > 0) {
       e.preventDefault();
       alertText.textContent = 'Revisa los campos marcados en rojo.';
       alertBox.hidden = false;
-      const first = form.querySelector('.field--invalid input');
-      if (first) first.focus();
+      const primero = form.querySelector('.field--invalid input');
+      if (primero) primero.focus();
     } else {
       alertBox.hidden = true;
     }

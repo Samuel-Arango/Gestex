@@ -76,10 +76,10 @@
 
       <div class="sidebar-footer">
         <div class="user-card">
-          <div class="user-avatar">{{ request.user.username|first|upper }}</div>
+          <div class="user-avatar">{{ request.user.nombre|first|upper }}</div>
           <div class="user-info">
-            <p class="user-name">{% firstof request.user.get_full_name request.user.username %}</p>
-            <p class="user-role">{% if request.user.is_superuser %}Administrador{% else %}Usuario{% endif %}</p>
+            <p class="user-name">{{ request.user.nombre }}</p>
+            <p class="user-role">{{ request.user.id_rol.nombre_rol }}</p>
           </div>
           <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
             {% csrf_token %}
