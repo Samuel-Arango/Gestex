@@ -1,0 +1,73 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}{{ titulo }} | Gestex{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <h2>{{ titulo }}</h2>
+    <p>Los campos marcados con * son obligatorios.</p>
+  </div>
+</div>
+
+<form method="post" class="form-card" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="flash flash--error" role="alert">
+      <i class="bi bi-exclamation-circle"></i>
+      <span>{{ form.non_field_errors|join:' ' }}</span>
+    </div>
+  {% endif %}
+
+  <div class="form-row">
+    <label for="{{ form.nombre.id_for_label }}" title="Nombre con el que lo reconocerás en el taller">{{ form.nombre.label }} *</label>
+    {{ form.nombre }}
+    {% if form.nombre.help_text %}<p class="help">{{ form.nombre.help_text }}</p>{% endif %}
+    {{ form.nombre.errors }}
+  </div>
+
+  <div class="form-grid">
+    <div class="form-row">
+      <label for="{{ form.tipo.id_for_label }}">{{ form.tipo.label }} *</label>
+      {{ form.tipo }}
+      <p class="help">{{ form.tipo.help_text }}</p>
+      {{ form.tipo.errors }}
+    </div>
+
+    <div class="form-row">
+      <label for="{{ form.unidad_medida.id_for_label }}">{{ form.unidad_medida.label }} *</label>
+      {{ form.unidad_medida }}
+      <p class="help">{{ form.unidad_medida.help_text }}</p>
+      {{ form.unidad_medida.errors }}
+    </div>
+
+    <div class="form-row">
+      <label for="{{ form.stock_minimo.id_for_label }}">{{ form.stock_minimo.label }} *</label>
+      {{ form.stock_minimo }}
+      <p class="help">{{ form.stock_minimo.help_text }}</p>
+      {{ form.stock_minimo.errors }}
+    </div>
+
+    {% if form.estado %}
+    <div class="form-row">
+      <label for="{{ form.estado.id_for_label }}">{{ form.estado.label }}</label>
+      {{ form.estado }}
+      {{ form.estado.errors }}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="form-row">
+    <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }}</label>
+    {{ form.descripcion }}
+    {{ form.descripcion.errors }}
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary-app"><i class="bi bi-check2"></i> Guardar</button>
+    <a class="btn-secondary-app" href="{% if producto.pk %}{% url 'inventario:detalle' producto.pk %}{% else %}{% url 'inventario:lista' %}{% endif %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

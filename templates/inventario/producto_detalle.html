@@ -1,0 +1,113 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}{{ producto.nombre }} | Gestex{% endblock %}
+{% block page_title %}Ficha de producto{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <p style="margin-bottom: 6px;">
+      <a href="{% url 'inventario:lista' %}" class="enlace-volver"><i class="bi bi-arrow-left"></i> Volver al inventario</a>
+    </p>
+    <h2>{{ producto.nombre }}</h2>
+    <p>
+      {% if producto.tipo == 'insumo' %}
+        <span class="badge-tipo badge-tipo--insumo">Insumo</span>
+      {% else %}
+        <span class="badge-tipo badge-tipo--terminado">Producto terminado</span>
+      {% endif %}
+      {% if producto.estado == 'activo' %}
+        <span class="badge-estado badge-estado--activo">Activo</span>
+      {% else %}
+        <span class="badge-estado badge-estado--inactivo">Inactivo</span>
+      {% endif %}
+    </p>
+  </div>
+  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    {% if puede_movimientos and producto.estado == 'activo' %}
+    <a class="btn-secondary-app" href="{% url 'inventario:entrada' %}?producto={{ producto.pk }}" title="Registrar material que llega">
+      <i class="bi bi-arrow-down-circle"></i> Registrar entrada
+    </a>
+    <a class="btn-secondary-app" href="{% url 'inventario:salida' %}?producto={{ producto.pk }}" title="Registrar material que sale">
+      <i class="bi bi-arrow-up-circle"></i> Registrar salida
+    </a>
+    {% endif %}
+    {% if puede_editar %}
+    <a class="btn-primary-app" href="{% url 'inventario:editar' producto.pk %}">
+      <i class="bi bi-pencil"></i> Editar datos
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-chip {% if producto.en_alerta and producto.estado == 'activo' %}stat-chip--alerta{% endif %}">
+    <span class="stat-chip__valor">{{ producto.cantidad_actual }} <small>{{ producto.unidad_medida }}</small></span>
+    <span class="stat-chip__texto">Existencias actuales</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-chip__valor">{{ producto.stock_minimo }} <small>{{ producto.unidad_medida }}</small></span>
+    <span class="stat-chip__texto">Stock mínimo</span>
+  </div>
+</div>
+
+{% if producto.en_alerta and producto.estado == 'activo' %}
+  <div class="flash flash--error" role="alert">
+    <i class="bi bi-exclamation-triangle"></i>
+    <span>Las existencias llegaron al stock mínimo. Conviene reponer este producto.</span>
+  </div>
+{% endif %}
+
+<div class="form-card" style="max-width: none; margin-bottom: 22px;">
+  <h3 class="seccion-titulo">Descripción</h3>
+  <p class="texto-normal">{{ producto.descripcion|default:"Sin descripción registrada." }}</p>
+</div>
+
+<div class="table-card">
+  <div class="seccion-cabecera" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <div>
+      <h3 class="seccion-titulo">Últimos movimientos</h3>
+      <p>Entradas y salidas más recientes de este producto.</p>
+    </div>
+    <a class="btn-link" href="{% url 'inventario:historial' %}?producto={{ producto.pk }}">Ver historial completo</a>
+  </div>
+  {% if ultimos_movimientos %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Tipo</th>
+        <th class="num">Cantidad</th>
+        <th>Motivo</th>
+        <th>Usuario</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for movimiento in ultimos_movimientos %}
+      <tr>
+        <td>{{ movimiento.fecha|date:"d/m/Y H:i" }}</td>
+        <td>
+          {% if movimiento.tipo_movimiento == 'entrada' %}
+            <span class="badge-mov badge-mov--entrada"><i class="bi bi-arrow-down"></i> Entrada</span>
+          {% else %}
+            <span class="badge-mov badge-mov--salida"><i class="bi bi-arrow-up"></i> Salida</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ movimiento.cantidad }} {{ producto.unidad_medida }}</td>
+        <td>{{ movimiento.motivo }}</td>
+        <td>{{ movimiento.usuario.nombre }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding: 36px 20px;">
+    <i class="bi bi-clock-history"></i>
+    <p>Este producto aún no tiene movimientos</p>
+    <small>Cuando registres entradas o salidas, aparecerán aquí.</small>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

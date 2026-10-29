@@ -1,8 +1,14 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
-ROL_ADMINISTRADOR = 'Administrador'
-ROL_USUARIO = 'Usuario'
+from .permisos import (
+    ROL_ADMINISTRADOR,
+    ROL_OPERARIO,
+    tiene_permiso_por_rol,
+    tiene_permisos_de_app,
+)
+
+__all__ = ['ROL_ADMINISTRADOR', 'ROL_OPERARIO', 'Rol', 'Usuario']
 
 
 class Rol(models.Model):
@@ -34,9 +40,10 @@ class UsuarioManager(BaseUserManager):
 
         correo = self.normalize_email(correo).strip().lower()
         if id_rol is None:
+            # Por defecto, cualquier usuario nuevo es Operario.
             id_rol, _ = Rol.objects.get_or_create(
-                nombre_rol=ROL_USUARIO,
-                defaults={'descripcion': 'Acceso básico al sistema.'},
+                nombre_rol=ROL_OPERARIO,
+                defaults={'descripcion': 'Registra y consulta el inventario.'},
             )
 
         usuario = self.model(correo=correo, nombre=nombre, id_rol=id_rol, **extra_fields)
@@ -102,18 +109,28 @@ class Usuario(AbstractBaseUser):
         return self.estado
 
     @property
-    def is_staff(self):
+    def es_administrador(self):
         return self.id_rol.nombre_rol == ROL_ADMINISTRADOR
+
+    # El acceso al panel de Django (/admin/) solo lo tienen los administradores.
+    @property
+    def is_staff(self):
+        return self.es_administrador
 
     @property
     def is_superuser(self):
-        return self.is_staff
+        return self.es_administrador
 
     def has_perm(self, perm, obj=None):
-        return self.is_active and self.is_superuser
+        """Permisos según el rol (ver accounts/permisos.py)."""
+        return tiene_permiso_por_rol(self.id_rol.nombre_rol, perm, self.is_active)
+
+    def has_perms(self, perm_list, obj=None):
+        # Django lo usa en PermissionRequiredMixin: el usuario debe tener todos los permisos.
+        return all(self.has_perm(perm, obj) for perm in perm_list)
 
     def has_module_perms(self, app_label):
-        return self.is_active and self.is_superuser
+        return tiene_permisos_de_app(self.id_rol.nombre_rol, app_label, self.is_active)
 
     def get_full_name(self):
         return self.nombre

@@ -1,0 +1,63 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Usuarios y roles | Gestex{% endblock %}
+{% block page_title %}Usuarios y roles{% endblock %}
+{% block nav_usuarios %}active{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <h2>Personas con acceso al sistema</h2>
+    <p>Desde aquí puedes cambiar el rol o desactivar una cuenta.</p>
+  </div>
+</div>
+
+<div class="table-card">
+  {% if usuarios %}
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Correo</th>
+        <th>Rol</th>
+        <th>Estado</th>
+        <th><span class="sr-only">Acciones</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for usuario in usuarios %}
+      <tr>
+        <td><strong>{{ usuario.nombre }}</strong></td>
+        <td>{{ usuario.correo }}</td>
+        <td>
+          {% if usuario.id_rol.nombre_rol == 'Administrador' %}
+            <span class="badge-rol badge-rol--admin">Administrador</span>
+          {% else %}
+            <span class="badge-rol badge-rol--operario">{{ usuario.id_rol.nombre_rol }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if usuario.estado %}
+            <span class="badge-estado badge-estado--activo">Activo</span>
+          {% else %}
+            <span class="badge-estado badge-estado--inactivo">Inactivo</span>
+          {% endif %}
+        </td>
+        <td style="text-align: right;">
+          <a class="btn-link" href="{% url 'accounts:usuario_editar' usuario.pk %}" title="Cambiar rol o estado">
+            <i class="bi bi-pencil"></i> Editar
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state" style="padding: 40px 20px;">
+    <i class="bi bi-people"></i>
+    <p>Todavía no hay usuarios registrados</p>
+    <small>Las personas aparecen aquí cuando crean su cuenta.</small>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -41,15 +41,11 @@
         </a>
 
         <p class="nav-section">Inventario</p>
-        <a class="nav-link" href="#">
-          <i class="bi bi-bag"></i>
-          <span>Telas</span>
-        </a>
-        <a class="nav-link" href="#">
+        <a class="nav-link {% block nav_insumos %}{% endblock %}" href="{% url 'inventario:lista' %}?tipo=insumo">
           <i class="bi bi-scissors"></i>
-          <span>Hilos &amp; Avíos</span>
+          <span>Insumos (telas, hilos, avíos)</span>
         </a>
-        <a class="nav-link" href="#">
+        <a class="nav-link {% block nav_terminados %}{% endblock %}" href="{% url 'inventario:lista' %}?tipo=producto_terminado">
           <i class="bi bi-box-seam"></i>
           <span>Productos terminados</span>
         </a>
@@ -58,20 +54,40 @@
           <span>Stock por almacén</span>
         </a>
 
+        <p class="nav-section">Producción</p>
+        <a class="nav-link {% block nav_producciones %}{% endblock %}" href="{% url 'inventario:producciones' %}">
+          <i class="bi bi-scissors"></i>
+          <span>Producciones</span>
+        </a>
+
         <p class="nav-section">Movimientos</p>
-        <a class="nav-link" href="#">
+        <a class="nav-link {% block nav_entrada %}{% endblock %}" href="{% url 'inventario:entrada' %}">
           <i class="bi bi-arrow-down-circle"></i>
           <span>Compras / Entradas</span>
         </a>
-        <a class="nav-link" href="#">
+        <a class="nav-link {% block nav_salida %}{% endblock %}" href="{% url 'inventario:salida' %}">
           <i class="bi bi-arrow-up-circle"></i>
           <span>Salidas / Consumo</span>
         </a>
+        <a class="nav-link {% block nav_historial %}{% endblock %}" href="{% url 'inventario:historial' %}">
+          <i class="bi bi-clock-history"></i>
+          <span>Historial</span>
+        </a>
+        <a class="nav-link {% block nav_reportes %}{% endblock %}" href="{% url 'inventario:reportes' %}">
+          <i class="bi bi-bar-chart-line"></i>
+          <span>Reportes</span>
+        </a>
+        {% if request.user.es_administrador %}
         <p class="nav-section">Administración</p>
+        <a class="nav-link {% block nav_usuarios %}{% endblock %}" href="{% url 'accounts:usuarios' %}">
+          <i class="bi bi-people"></i>
+          <span>Usuarios y roles</span>
+        </a>
         <a class="nav-link" href="{% url 'admin:index' %}">
           <i class="bi bi-gear"></i>
           <span>Panel Django Admin</span>
         </a>
+        {% endif %}
       </nav>
 
       <div class="sidebar-footer">
@@ -104,10 +120,12 @@
           </div>
         </div>
         <div class="header-right">
+          {% if request.user.es_administrador %}
           <a class="header-btn" href="{% url 'admin:index' %}">
             <i class="bi bi-sliders"></i>
             <span>Configuración</span>
           </a>
+          {% endif %}
         <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
           {% csrf_token %}
           <button class="header-btn header-btn--primary" type="submit">
@@ -119,6 +137,12 @@
       </header>
 
       <main class="dash-content">
+        {% for message in messages %}
+          <div class="flash flash--{{ message.tags|default:'info' }}" role="status">
+            <i class="bi {% if message.tags == 'error' %}bi-exclamation-circle{% else %}bi-check-circle{% endif %}"></i>
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
         {% block content %}{% endblock %}
       </main>
 

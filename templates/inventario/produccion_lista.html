@@ -1,0 +1,116 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Producciones | Gestex{% endblock %}
+{% block page_title %}Producciones{% endblock %}
+{% block nav_producciones %}active{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 18px;">
+  <div>
+    <h2>Órdenes de confección</h2>
+    <p>Lo que se va a producir, qué insumos necesita y en qué estado va.</p>
+  </div>
+  {% if puede_crear %}
+  <a class="btn-primary-app" href="{% url 'inventario:produccion_crear' %}">
+    <i class="bi bi-plus-lg"></i> Nueva producción
+  </a>
+  {% endif %}
+</div>
+
+<form method="get" class="toolbar" role="search">
+  <div class="toolbar__busqueda">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ busqueda }}" placeholder="Buscar por descripción o tipo"
+           aria-label="Buscar producción" maxlength="100">
+  </div>
+  <select name="estado" aria-label="Filtrar por estado">
+    <option value="">Todos los estados</option>
+    {% for valor, texto in estados %}
+      <option value="{{ valor }}" {% if valor == estado_seleccionado %}selected{% endif %}>{{ texto }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn-primary-app"><i class="bi bi-funnel"></i> Filtrar</button>
+  {% if hay_filtros %}
+    <a class="btn-secondary-app" href="{% url 'inventario:producciones' %}">Limpiar</a>
+  {% endif %}
+</form>
+
+<div class="table-card">
+  {% if producciones %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Producción</th>
+        <th class="num">Cantidad</th>
+        <th>Fechas</th>
+        <th class="num">Materiales</th>
+        <th>Estado</th>
+        <th>Responsable</th>
+        <th><span class="sr-only">Acciones</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for produccion in producciones %}
+      <tr>
+        <td>
+          <a class="producto-nombre" href="{% url 'inventario:produccion_detalle' produccion.pk %}">#{{ produccion.pk }} · {{ produccion.tipo }}</a>
+          <p class="producto-desc">{{ produccion.descripcion|truncatechars:70 }}</p>
+        </td>
+        <td class="num">{{ produccion.cantidad_solicitada }} pzas.</td>
+        <td class="fecha-celda">
+          {{ produccion.fecha_inicio|date:"d/m/Y" }} → {{ produccion.fecha_entrega|date:"d/m/Y" }}
+        </td>
+        <td class="num">{{ produccion.total_materiales }}</td>
+        <td>
+          <span class="badge-produccion badge-produccion--{{ produccion.estado|slugify }}">{{ produccion.get_estado_display }}</span>
+        </td>
+        <td>{{ produccion.usuario.nombre }}</td>
+        <td class="acciones">
+          <a class="btn-icono" href="{% url 'inventario:produccion_detalle' produccion.pk %}" title="Ver ficha">
+            <i class="bi bi-eye"></i>
+          </a>
+          {% if puede_editar %}
+          <a class="btn-icono" href="{% url 'inventario:produccion_editar' produccion.pk %}" title="Editar">
+            <i class="bi bi-pencil"></i>
+          </a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="paginacion" aria-label="Páginas">
+    {% if page_obj.has_previous %}
+      <a class="btn-secondary-app" href="?{{ parametros_busqueda }}&amp;page={{ page_obj.previous_page_number }}">&larr; Anterior</a>
+    {% endif %}
+    <span class="paginacion__info">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn-secondary-app" href="?{{ parametros_busqueda }}&amp;page={{ page_obj.next_page_number }}">Siguiente &rarr;</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state" style="padding: 44px 20px;">
+    {% if hay_filtros %}
+      <i class="bi bi-search"></i>
+      <p>No hay producciones con estos filtros</p>
+      <small>Prueba con otra búsqueda o <a href="{% url 'inventario:producciones' %}">quita los filtros</a>.</small>
+    {% else %}
+      <i class="bi bi-scissors"></i>
+      <p>Todavía no hay producciones</p>
+      <small>Crea una orden de confección y define qué insumos necesita.</small>
+      {% if puede_crear %}
+        <a class="btn-primary-app" href="{% url 'inventario:produccion_crear' %}" style="margin-top: 14px;">
+          <i class="bi bi-plus-lg"></i> Crear la primera producción
+        </a>
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

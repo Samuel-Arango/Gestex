@@ -1,0 +1,156 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} | Gestex{% endblock %}
+{% block page_title %}Producciones{% endblock %}
+{% block nav_producciones %}active{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <p style="margin-bottom: 6px;">
+      <a href="{% url 'inventario:producciones' %}" class="enlace-volver"><i class="bi bi-arrow-left"></i> Volver a producciones</a>
+    </p>
+    <h2>{{ titulo }}</h2>
+    <p>Define qué se va a producir y qué insumos necesita. Los campos con * son obligatorios.</p>
+  </div>
+</div>
+
+<form method="post" class="form-card form-card--ancho" novalidate id="form-produccion">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="flash flash--error" role="alert">
+      <i class="bi bi-exclamation-circle"></i>
+      <span>{{ form.non_field_errors|join:' ' }}</span>
+    </div>
+  {% endif %}
+
+  <section class="bloque-form">
+    <h3 class="seccion-titulo">1. Datos de la producción</h3>
+
+    <datalist id="tipos-produccion">
+      <option value="Confección"></option>
+      <option value="Reparación"></option>
+      <option value="Muestra"></option>
+    </datalist>
+
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="{{ form.tipo.id_for_label }}">{{ form.tipo.label }} *</label>
+        {{ form.tipo }}
+        <p class="help">{{ form.tipo.help_text }}</p>
+        {{ form.tipo.errors }}
+      </div>
+
+      <div class="form-row">
+        <label for="{{ form.cantidad_solicitada.id_for_label }}">{{ form.cantidad_solicitada.label }} *</label>
+        {{ form.cantidad_solicitada }}
+        <p class="help">{{ form.cantidad_solicitada.help_text }}</p>
+        {{ form.cantidad_solicitada.errors }}
+      </div>
+
+      <div class="form-row">
+        <label for="{{ form.fecha_inicio.id_for_label }}">{{ form.fecha_inicio.label }} *</label>
+        {{ form.fecha_inicio }}
+        {{ form.fecha_inicio.errors }}
+      </div>
+
+      <div class="form-row">
+        <label for="{{ form.fecha_entrega.id_for_label }}">{{ form.fecha_entrega.label }} *</label>
+        {{ form.fecha_entrega }}
+        {{ form.fecha_entrega.errors }}
+      </div>
+
+      {% if form.estado %}
+      <div class="form-row">
+        <label for="{{ form.estado.id_for_label }}">{{ form.estado.label }}</label>
+        {{ form.estado }}
+        {{ form.estado.errors }}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="form-row">
+      <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }} *</label>
+      {{ form.descripcion }}
+      {{ form.descripcion.errors }}
+    </div>
+  </section>
+
+  <section class="bloque-form">
+    <h3 class="seccion-titulo">2. Materiales necesarios</h3>
+    <p class="help" style="margin-bottom: 12px;">
+      Agrega una fila por insumo. Si un insumo se usa dos veces, suma las cantidades en una sola fila.
+      Solo aparecen insumos activos.
+    </p>
+
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}
+      <div class="flash flash--error" role="alert">
+        <i class="bi bi-exclamation-circle"></i>
+        <span>{{ formset.non_form_errors|join:' ' }}</span>
+      </div>
+    {% endif %}
+
+    <div id="filas-materiales" class="filas-materiales">
+      {% for fila in formset %}
+        <div class="fila-material" data-fila>
+          {% for oculto in fila.hidden_fields %}{{ oculto }}{% endfor %}
+          <div class="fila-material__campo">
+            <label for="{{ fila.producto.id_for_label }}">Insumo</label>
+            {{ fila.producto }}
+            {{ fila.producto.errors }}
+          </div>
+          <div class="fila-material__campo">
+            <label for="{{ fila.cantidad_requerida.id_for_label }}">Cantidad requerida</label>
+            {{ fila.cantidad_requerida }}
+            {% if fila.instance.pk %}
+              <p class="help">Ya utilizado: {{ fila.instance.cantidad_utilizada }}</p>
+            {% endif %}
+            {{ fila.cantidad_requerida.errors }}
+          </div>
+          <div class="fila-material__quitar">
+            {{ fila.DELETE }}
+            <label for="{{ fila.DELETE.id_for_label }}">Quitar</label>
+          </div>
+          {{ fila.non_field_errors }}
+        </div>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="btn-secondary-app" id="agregar-material" style="margin-top: 14px;">
+      <i class="bi bi-plus-lg"></i> Agregar material
+    </button>
+
+    <template id="plantilla-material">
+      {% with vacia=formset.empty_form %}
+      <div class="fila-material" data-fila>
+        {% for oculto in vacia.hidden_fields %}{{ oculto }}{% endfor %}
+        <div class="fila-material__campo">
+          <label for="{{ vacia.producto.id_for_label }}">Insumo</label>
+          {{ vacia.producto }}
+        </div>
+        <div class="fila-material__campo">
+          <label for="{{ vacia.cantidad_requerida.id_for_label }}">Cantidad requerida</label>
+          {{ vacia.cantidad_requerida }}
+        </div>
+        <div class="fila-material__quitar">
+          {{ vacia.DELETE }}
+          <label for="{{ vacia.DELETE.id_for_label }}">Quitar</label>
+        </div>
+      </div>
+      {% endwith %}
+    </template>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary-app"><i class="bi bi-check2"></i> Guardar producción</button>
+    <a class="btn-secondary-app" href="{% if produccion %}{% url 'inventario:produccion_detalle' produccion.pk %}{% else %}{% url 'inventario:producciones' %}{% endif %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/produccion_form.js' %}"></script>
+{% endblock %}

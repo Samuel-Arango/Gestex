@@ -1,0 +1,157 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Inventario | Gestex{% endblock %}
+{% block page_title %}Inventario{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 18px;">
+  <div>
+    <h2>Insumos y productos terminados</h2>
+    <p>Busca, registra y revisa lo que tienes en el taller.</p>
+  </div>
+  {% if puede_crear %}
+  <a class="btn-primary-app" href="{% url 'inventario:crear' %}" title="Registrar un insumo o producto terminado">
+    <i class="bi bi-plus-lg"></i> Nuevo producto
+  </a>
+  {% endif %}
+</div>
+
+<!-- Resumen rápido -->
+<div class="stat-row">
+  <div class="stat-chip">
+    <span class="stat-chip__valor">{{ total_productos }}</span>
+    <span class="stat-chip__texto">Productos registrados</span>
+  </div>
+  <div class="stat-chip {% if total_en_alerta %}stat-chip--alerta{% endif %}">
+    <span class="stat-chip__valor">{{ total_en_alerta }}</span>
+    <span class="stat-chip__texto">Con stock bajo</span>
+  </div>
+</div>
+
+<!-- Búsqueda y filtros -->
+<form method="get" class="toolbar" role="search">
+  <div class="toolbar__busqueda">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ busqueda }}" placeholder="Buscar por nombre o descripción"
+           aria-label="Buscar producto" maxlength="100">
+  </div>
+  <select name="tipo" aria-label="Filtrar por tipo" title="Filtrar por tipo">
+    <option value="">Todos los tipos</option>
+    {% for valor, texto in tipos %}
+      <option value="{{ valor }}" {% if valor == tipo_seleccionado %}selected{% endif %}>{{ texto }}</option>
+    {% endfor %}
+  </select>
+  <select name="estado" aria-label="Filtrar por estado" title="Filtrar por estado">
+    <option value="">Activos e inactivos</option>
+    {% for valor, texto in estados %}
+      <option value="{{ valor }}" {% if valor == estado_seleccionado %}selected{% endif %}>{{ texto }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn-primary-app"><i class="bi bi-funnel"></i> Filtrar</button>
+  {% if hay_filtros %}
+    <a class="btn-secondary-app" href="{% url 'inventario:lista' %}">Limpiar</a>
+  {% endif %}
+</form>
+
+<div class="table-card">
+  {% if productos %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Tipo</th>
+        <th class="num">Existencias</th>
+        <th class="num">Mínimo</th>
+        <th>Estado</th>
+        <th><span class="sr-only">Acciones</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for producto in productos %}
+      <tr class="{% if producto.en_alerta and producto.estado == 'activo' %}fila--alerta{% endif %}">
+        <td>
+          <a class="producto-nombre" href="{% url 'inventario:detalle' producto.pk %}">{{ producto.nombre }}</a>
+          {% if producto.descripcion %}
+            <p class="producto-desc">{{ producto.descripcion|truncatechars:70 }}</p>
+          {% endif %}
+        </td>
+        <td>
+          {% if producto.tipo == 'insumo' %}
+            <span class="badge-tipo badge-tipo--insumo">Insumo</span>
+          {% else %}
+            <span class="badge-tipo badge-tipo--terminado">Producto terminado</span>
+          {% endif %}
+        </td>
+        <td class="num">
+          <strong>{{ producto.cantidad_actual }}</strong> <span class="unidad">{{ producto.unidad_medida }}</span>
+          {% if producto.en_alerta and producto.estado == 'activo' %}
+            <span class="badge-alerta" title="Las existencias llegaron al stock mínimo. Conviene reponer.">
+              <i class="bi bi-exclamation-triangle"></i> Stock bajo
+            </span>
+          {% endif %}
+        </td>
+        <td class="num">{{ producto.stock_minimo }}</td>
+        <td>
+          {% if producto.estado == 'activo' %}
+            <span class="badge-estado badge-estado--activo">Activo</span>
+          {% else %}
+            <span class="badge-estado badge-estado--inactivo">Inactivo</span>
+          {% endif %}
+        </td>
+        <td class="acciones">
+          <a class="btn-icono" href="{% url 'inventario:detalle' producto.pk %}" title="Ver ficha">
+            <i class="bi bi-eye"></i>
+          </a>
+          {% if puede_editar %}
+            <a class="btn-icono" href="{% url 'inventario:editar' producto.pk %}" title="Editar datos">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="{% url 'inventario:cambiar_estado' producto.pk %}" class="inline-form"
+                  onsubmit="return confirm('{% if producto.estado == 'activo' %}¿Desactivar este producto? Su historial se conserva.{% else %}¿Volver a activar este producto?{% endif %}');">
+              {% csrf_token %}
+              <button type="submit" class="btn-icono {% if producto.estado == 'activo' %}btn-icono--peligro{% endif %}"
+                      title="{% if producto.estado == 'activo' %}Desactivar{% else %}Activar{% endif %}">
+                <i class="bi {% if producto.estado == 'activo' %}bi-toggle-on{% else %}bi-toggle-off{% endif %}"></i>
+              </button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="paginacion" aria-label="Páginas">
+    {% if page_obj.has_previous %}
+      <a class="btn-secondary-app" href="?{{ parametros_busqueda }}&amp;page={{ page_obj.previous_page_number }}">&larr; Anterior</a>
+    {% endif %}
+    <span class="paginacion__info">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn-secondary-app" href="?{{ parametros_busqueda }}&amp;page={{ page_obj.next_page_number }}">Siguiente &rarr;</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state" style="padding: 44px 20px;">
+    {% if hay_filtros %}
+      <i class="bi bi-search"></i>
+      <p>No encontramos productos con esos filtros</p>
+      <small>Prueba con otra palabra o <a href="{% url 'inventario:lista' %}">quita los filtros</a>.</small>
+    {% else %}
+      <i class="bi bi-box-seam"></i>
+      <p>Todavía no tienes productos registrados</p>
+      <small>Registra tus telas, hilos, botones y prendas para empezar a controlar el inventario.</small>
+      {% if puede_crear %}
+        <a class="btn-primary-app" href="{% url 'inventario:crear' %}" style="margin-top: 14px;">
+          <i class="bi bi-plus-lg"></i> Registrar el primer producto
+        </a>
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

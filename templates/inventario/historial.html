@@ -1,0 +1,165 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Historial de movimientos | Gestex{% endblock %}
+{% block page_title %}Historial de movimientos{% endblock %}
+{% block nav_historial %}active{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 18px;">
+  <div>
+    <h2>Entradas y salidas</h2>
+    <p>Todo lo que ha entrado y salido del taller, del más reciente al más antiguo.</p>
+  </div>
+</div>
+
+{% if producto_filtrado %}
+  <div class="flash flash--info" role="status">
+    <i class="bi bi-funnel"></i>
+    <span>Mostrando solo movimientos de <strong>{{ producto_filtrado.nombre }}</strong>.</span>
+    <a class="enlace-volver" style="margin-left: auto;" href="{% url 'inventario:historial' %}">Ver todos</a>
+  </div>
+{% endif %}
+
+<!-- Resumen del conjunto filtrado -->
+<div class="stat-row">
+  <div class="stat-chip">
+    <span class="stat-chip__valor">{{ resumen.total }}</span>
+    <span class="stat-chip__texto">Movimientos encontrados</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-chip__valor" style="color: #166534;">{{ resumen.entradas }}</span>
+    <span class="stat-chip__texto">Entradas</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-chip__valor" style="color: #9f1239;">{{ resumen.salidas }}</span>
+    <span class="stat-chip__texto">Salidas</span>
+  </div>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="toolbar toolbar--historial" role="search">
+  {% if producto_filtrado %}
+    <input type="hidden" name="producto" value="{{ producto_filtrado.pk }}">
+  {% endif %}
+
+  <div class="toolbar__busqueda">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ form.q.value|default:'' }}" placeholder="Nombre del producto"
+           aria-label="Buscar por producto" maxlength="100">
+  </div>
+
+  <select name="tipo_material" aria-label="Tipo de material" title="Insumo o producto terminado">
+    {% for valor, texto in form.fields.tipo_material.choices %}
+      <option value="{{ valor }}" {% if form.tipo_material.value == valor %}selected{% endif %}>{{ texto }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="tipo_movimiento" aria-label="Tipo de movimiento" title="Entrada o salida">
+    {% for valor, texto in form.fields.tipo_movimiento.choices %}
+      <option value="{{ valor }}" {% if form.tipo_movimiento.value == valor %}selected{% endif %}>{{ texto }}</option>
+    {% endfor %}
+  </select>
+
+  <label class="filtro-fecha">
+    <span>Desde</span>
+    <input type="date" name="desde" value="{{ form.desde.value|default:'' }}" aria-label="Desde la fecha">
+  </label>
+  <label class="filtro-fecha">
+    <span>Hasta</span>
+    <input type="date" name="hasta" value="{{ form.hasta.value|default:'' }}" aria-label="Hasta la fecha">
+  </label>
+
+  <button type="submit" class="btn-primary-app"><i class="bi bi-funnel"></i> Filtrar</button>
+  {% if hay_filtros %}
+    <a class="btn-secondary-app" href="{% url 'inventario:historial' %}">Limpiar</a>
+  {% endif %}
+</form>
+
+{% if form.errors %}
+  <div class="flash flash--error" role="alert">
+    <i class="bi bi-exclamation-circle"></i>
+    <span>
+      Revisa los filtros:
+      {% for campo, errores in form.errors.items %}{{ errores|join:' ' }} {% endfor %}
+    </span>
+  </div>
+{% endif %}
+
+<div class="table-card">
+  {% if movimientos %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Movimiento</th>
+        <th>Producto</th>
+        <th class="num">Cantidad</th>
+        <th>Motivo</th>
+        <th>Producción</th>
+        <th>Registró</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for movimiento in movimientos %}
+      <tr>
+        <td class="fecha-celda">
+          {{ movimiento.fecha|date:"d/m/Y" }}
+          <span class="hora">{{ movimiento.fecha|date:"H:i" }}</span>
+        </td>
+        <td>
+          {% if movimiento.tipo_movimiento == 'entrada' %}
+            <span class="badge-mov badge-mov--entrada"><i class="bi bi-arrow-down"></i> Entrada</span>
+          {% else %}
+            <span class="badge-mov badge-mov--salida"><i class="bi bi-arrow-up"></i> Salida</span>
+          {% endif %}
+        </td>
+        <td>
+          <a class="producto-nombre" href="{% url 'inventario:detalle' movimiento.producto.pk %}">{{ movimiento.producto.nombre }}</a>
+          <p class="producto-desc">
+            {% if movimiento.producto.tipo == 'insumo' %}Insumo{% else %}Producto terminado{% endif %}
+          </p>
+        </td>
+        <td class="num"><strong>{{ movimiento.cantidad }}</strong> <span class="unidad">{{ movimiento.producto.unidad_medida }}</span></td>
+        <td>{{ movimiento.motivo }}</td>
+        <td>
+          {% if movimiento.produccion %}
+            <span title="{{ movimiento.produccion.descripcion }}">#{{ movimiento.produccion.pk }} · {{ movimiento.produccion.tipo }}</span>
+          {% else %}
+            <span class="unidad">—</span>
+          {% endif %}
+        </td>
+        <td>{{ movimiento.usuario.nombre }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="paginacion" aria-label="Páginas del historial">
+    {% if page_obj.has_previous %}
+      <a class="btn-secondary-app" href="?{{ parametros_filtro }}&amp;page={{ page_obj.previous_page_number }}">&larr; Anterior</a>
+    {% endif %}
+    <span class="paginacion__info">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn-secondary-app" href="?{{ parametros_filtro }}&amp;page={{ page_obj.next_page_number }}">Siguiente &rarr;</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state" style="padding: 44px 20px;">
+    {% if hay_filtros %}
+      <i class="bi bi-search"></i>
+      <p>No hay movimientos con estos filtros</p>
+      <small>Prueba con otro rango de fechas o <a href="{% url 'inventario:historial' %}">quita los filtros</a>.</small>
+    {% else %}
+      <i class="bi bi-clock-history"></i>
+      <p>Todavía no hay movimientos registrados</p>
+      <small>Las entradas y salidas aparecerán aquí en cuanto las registres.</small>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

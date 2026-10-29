@@ -2,7 +2,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import ROL_ADMINISTRADOR, ROL_USUARIO, Rol, Usuario
+from .models import ROL_ADMINISTRADOR, ROL_OPERARIO, Rol, Usuario
 
 PASSWORD = 'Tela-Segura-2026'
 
@@ -11,7 +11,7 @@ class UsuarioModelTests(TestCase):
 
     def test_roles_base_se_crean_con_la_migracion(self):
         self.assertTrue(Rol.objects.filter(nombre_rol=ROL_ADMINISTRADOR).exists())
-        self.assertTrue(Rol.objects.filter(nombre_rol=ROL_USUARIO).exists())
+        self.assertTrue(Rol.objects.filter(nombre_rol=ROL_OPERARIO).exists())
 
     def test_la_contrasena_se_guarda_como_hash(self):
         usuario = Usuario.objects.create_user('ana@taller.co', 'Ana Ruiz', PASSWORD)
@@ -34,7 +34,7 @@ class UsuarioModelTests(TestCase):
 
     def test_rol_por_defecto_es_usuario(self):
         usuario = Usuario.objects.create_user('luis@taller.co', 'Luis Mora', PASSWORD)
-        self.assertEqual(usuario.id_rol.nombre_rol, ROL_USUARIO)
+        self.assertEqual(usuario.id_rol.nombre_rol, ROL_OPERARIO)
         self.assertFalse(usuario.is_staff)
 
     def test_superusuario_es_administrador(self):
@@ -133,7 +133,7 @@ class RegistroTests(TestCase):
         usuario = Usuario.objects.get(correo='maria@taller.co')
         self.assertEqual(usuario.nombre, 'María Pérez')
         self.assertTrue(usuario.check_password(PASSWORD))
-        self.assertEqual(usuario.id_rol.nombre_rol, ROL_USUARIO)
+        self.assertEqual(usuario.id_rol.nombre_rol, ROL_OPERARIO)
 
     def test_despues_de_registrarse_puede_iniciar_sesion(self):
         self.client.post(self.url, self.datos)

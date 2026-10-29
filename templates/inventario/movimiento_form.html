@@ -1,0 +1,72 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} | Gestex{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <h2>{{ titulo }}</h2>
+    <p>{{ descripcion }}</p>
+  </div>
+  <span class="badge-mov {% if es_entrada %}badge-mov--entrada{% else %}badge-mov--salida{% endif %}">
+    <i class="bi {% if es_entrada %}bi-arrow-down{% else %}bi-arrow-up{% endif %}"></i>
+    {% if es_entrada %}Entrada{% else %}Salida{% endif %}
+  </span>
+</div>
+
+<form method="post" class="form-card" novalidate id="form-movimiento" data-tipo="{% if es_entrada %}entrada{% else %}salida{% endif %}">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="flash flash--error" role="alert">
+      <i class="bi bi-exclamation-circle"></i>
+      <span>{{ form.non_field_errors|join:' ' }}</span>
+    </div>
+  {% endif %}
+
+  <div class="form-row">
+    <label for="{{ form.producto.id_for_label }}">{{ form.producto.label }} *</label>
+    {{ form.producto }}
+    <p class="help">Solo aparecen productos activos.</p>
+    {{ form.producto.errors }}
+  </div>
+
+  <div class="form-grid">
+    <div class="form-row">
+      <label for="{{ form.cantidad.id_for_label }}">{{ form.cantidad.label }} *</label>
+      {{ form.cantidad }}
+      <p class="help" id="ayuda-cantidad">
+        {% if es_entrada %}Cantidad que entra al taller.{% else %}Elige un producto para ver cuánto hay disponible.{% endif %}
+      </p>
+      {{ form.cantidad.errors }}
+    </div>
+
+    <div class="form-row">
+      <label for="{{ form.produccion.id_for_label }}">{{ form.produccion.label }}</label>
+      {{ form.produccion }}
+      <p class="help">{{ form.produccion.help_text }}</p>
+      {{ form.produccion.errors }}
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label for="{{ form.motivo.id_for_label }}">{{ form.motivo.label }} *</label>
+    {{ form.motivo }}
+    <p class="help">Explica de dónde viene o a dónde va. Sirve para el historial.</p>
+    {{ form.motivo.errors }}
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary-app">
+      <i class="bi bi-check2"></i> {% if es_entrada %}Registrar entrada{% else %}Registrar salida{% endif %}
+    </button>
+    <a class="btn-secondary-app" href="{% url 'inventario:lista' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/movimiento_form.js' %}"></script>
+{% endblock %}

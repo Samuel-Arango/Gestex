@@ -1,0 +1,159 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Producción #{{ produccion.pk }} | Gestex{% endblock %}
+{% block page_title %}Ficha de producción{% endblock %}
+{% block nav_producciones %}active{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <p style="margin-bottom: 6px;">
+      <a href="{% url 'inventario:producciones' %}" class="enlace-volver"><i class="bi bi-arrow-left"></i> Volver a producciones</a>
+    </p>
+    <h2>Producción #{{ produccion.pk }} · {{ produccion.tipo }}</h2>
+    <p>
+      <span class="badge-produccion badge-produccion--{{ produccion.estado|slugify }}">{{ produccion.get_estado_display }}</span>
+      Responsable: {{ produccion.usuario.nombre }}
+    </p>
+  </div>
+  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    {% if puede_movimientos and produccion.estado != 'Cancelada' %}
+    <a class="btn-secondary-app" href="{% url 'inventario:salida' %}?produccion={{ produccion.pk }}" title="Registrar material que sale para esta producción">
+      <i class="bi bi-arrow-up-circle"></i> Registrar salida de material
+    </a>
+    {% endif %}
+    {% if puede_editar %}
+    <a class="btn-primary-app" href="{% url 'inventario:produccion_editar' produccion.pk %}">
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-chip">
+    <span class="stat-chip__valor">{{ produccion.cantidad_solicitada }} <small>pzas.</small></span>
+    <span class="stat-chip__texto">Cantidad a producir</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-chip__valor stat-chip__valor--texto">{{ produccion.fecha_inicio|date:"d/m/Y" }}</span>
+    <span class="stat-chip__texto">Inicio</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-chip__valor stat-chip__valor--texto">{{ produccion.fecha_entrega|date:"d/m/Y" }}</span>
+    <span class="stat-chip__texto">Entrega</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-chip__valor">{{ materiales|length }}</span>
+    <span class="stat-chip__texto">Materiales</span>
+  </div>
+</div>
+
+<div class="form-card" style="max-width: none; margin-bottom: 22px;">
+  <h3 class="seccion-titulo">Descripción</h3>
+  <p class="texto-normal">{{ produccion.descripcion }}</p>
+</div>
+
+<div class="table-card" style="margin-bottom: 22px;">
+  <div class="seccion-cabecera">
+    <h3 class="seccion-titulo">Materiales y consumo</h3>
+    <p>El consumo se actualiza automáticamente con las salidas registradas para esta producción.</p>
+  </div>
+  {% if materiales %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Insumo</th>
+        <th class="num">Requerido</th>
+        <th class="num">Utilizado</th>
+        <th class="num">Pendiente</th>
+        <th style="min-width: 160px;">Avance</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for material in materiales %}
+      <tr class="{% if material.excedido %}fila--alerta{% endif %}">
+        <td>
+          <strong>{{ material.detalle.producto.nombre }}</strong>
+          {% if material.detalle.producto.estado != 'activo' %}
+            <span class="badge-estado badge-estado--inactivo">Insumo inactivo</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ material.detalle.cantidad_requerida }} <span class="unidad">{{ material.detalle.producto.unidad_medida }}</span></td>
+        <td class="num">{{ material.detalle.cantidad_utilizada }} <span class="unidad">{{ material.detalle.producto.unidad_medida }}</span></td>
+        <td class="num">{{ material.pendiente }}</td>
+        <td>
+          <div class="barra-progreso {% if material.excedido %}barra-progreso--exceso{% elif material.progreso >= 100 %}barra-progreso--completa{% endif %}"
+               role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ material.progreso }}"
+               title="{{ material.progreso }}% utilizado">
+            <span style="width: {{ material.progreso }}%;"></span>
+          </div>
+          <span class="unidad">{{ material.progreso }}%{% if material.excedido %} · se usó más de lo previsto{% endif %}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding: 36px 20px;">
+    <i class="bi bi-box-seam"></i>
+    <p>Esta producción aún no tiene materiales</p>
+    <small>Agrega los insumos que necesita para poder registrar su consumo.</small>
+    {% if puede_editar %}
+      <a class="btn-primary-app" href="{% url 'inventario:produccion_editar' produccion.pk %}" style="margin-top: 14px;">
+        <i class="bi bi-plus-lg"></i> Agregar materiales
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="table-card">
+  <div class="seccion-cabecera">
+    <h3 class="seccion-titulo">Movimientos de esta producción</h3>
+    <p>Salidas y entradas registradas con esta producción.</p>
+  </div>
+  {% if movimientos %}
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Movimiento</th>
+        <th>Producto</th>
+        <th class="num">Cantidad</th>
+        <th>Motivo</th>
+        <th>Registró</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for movimiento in movimientos %}
+      <tr>
+        <td class="fecha-celda">{{ movimiento.fecha|date:"d/m/Y" }} <span class="hora">{{ movimiento.fecha|date:"H:i" }}</span></td>
+        <td>
+          {% if movimiento.tipo_movimiento == 'entrada' %}
+            <span class="badge-mov badge-mov--entrada"><i class="bi bi-arrow-down"></i> Entrada</span>
+          {% else %}
+            <span class="badge-mov badge-mov--salida"><i class="bi bi-arrow-up"></i> Salida</span>
+          {% endif %}
+        </td>
+        <td>{{ movimiento.producto.nombre }}</td>
+        <td class="num">{{ movimiento.cantidad }} <span class="unidad">{{ movimiento.producto.unidad_medida }}</span></td>
+        <td>{{ movimiento.motivo }}</td>
+        <td>{{ movimiento.usuario.nombre }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding: 36px 20px;">
+    <i class="bi bi-clock-history"></i>
+    <p>Todavía no hay movimientos para esta producción</p>
+    <small>Cuando registres una salida de material para ella, aparecerá aquí.</small>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

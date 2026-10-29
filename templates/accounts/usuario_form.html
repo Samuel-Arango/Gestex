@@ -1,0 +1,52 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Editar usuario | Gestex{% endblock %}
+{% block page_title %}Editar usuario{% endblock %}
+{% block nav_usuarios %}active{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <h2>{{ object.nombre }}</h2>
+    <p>{{ object.correo }}</p>
+  </div>
+</div>
+
+<form method="post" class="form-card" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="flash flash--error" role="alert">
+      <i class="bi bi-exclamation-circle"></i>
+      <span>{{ form.non_field_errors|join:' ' }}</span>
+    </div>
+  {% endif %}
+
+  <div class="form-row">
+    <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+    {{ form.nombre }}
+    {{ form.nombre.errors }}
+  </div>
+
+  <div class="form-row">
+    <label for="{{ form.id_rol.id_for_label }}">{{ form.id_rol.label }}</label>
+    {{ form.id_rol }}
+    <p class="help">{{ form.id_rol.help_text }}</p>
+    {{ form.id_rol.errors }}
+  </div>
+
+  <div class="form-row">
+    <div class="checkbox-row">
+      {{ form.estado }}
+      <label for="{{ form.estado.id_for_label }}" style="margin: 0;">{{ form.estado.label }}</label>
+    </div>
+    <p class="help">{{ form.estado.help_text }}</p>
+    {{ form.estado.errors }}
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary-app"><i class="bi bi-check2"></i> Guardar cambios</button>
+    <a class="btn-secondary-app" href="{% url 'accounts:usuarios' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

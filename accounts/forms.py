@@ -3,7 +3,59 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
-from .models import Usuario
+from .models import ROL_ADMINISTRADOR, Rol, Usuario
+
+
+class UsuarioEditarForm(forms.ModelForm):
+    """
+    Edición de un usuario por el administrador: nombre, rol y estado.
+    La contraseña nunca se edita desde aquí.
+    """
+
+    class Meta:
+        model = Usuario
+        fields = ['nombre', 'id_rol', 'estado']
+        labels = {'id_rol': 'Rol', 'estado': 'Cuenta activa'}
+        help_texts = {
+            'id_rol': 'Administrador: acceso total. Operario: registra y consulta el inventario.',
+            'estado': 'Si se desactiva, la persona no podrá iniciar sesión.',
+        }
+
+    def __init__(self, *args, **kwargs):
+        # El administrador que edita; se usa para evitar que se bloquee a sí mismo.
+        self.solicitante = kwargs.pop('solicitante')
+        super().__init__(*args, **kwargs)
+        self.fields['id_rol'].queryset = Rol.objects.order_by('nombre_rol')
+
+    def clean(self):
+        cleaned = super().clean()
+        # En clean() la instancia aún tiene los valores guardados en la base de datos.
+        if self.instance.pk is None:
+            return cleaned
+
+        nuevo_rol = cleaned.get('id_rol')
+        nuevo_estado = cleaned.get('estado', True)
+        sera_admin_activo = bool(
+            nuevo_rol and nuevo_rol.nombre_rol == ROL_ADMINISTRADOR and nuevo_estado
+        )
+
+        if self.instance.pk == self.solicitante.pk:
+            if not nuevo_estado:
+                self.add_error('estado', 'No puedes desactivar tu propia cuenta.')
+            if nuevo_rol and nuevo_rol.nombre_rol != ROL_ADMINISTRADOR:
+                self.add_error('id_rol', 'No puedes quitarte tu propio rol de administrador.')
+
+        era_admin_activo = self.instance.es_administrador and self.instance.estado
+        if era_admin_activo and not sera_admin_activo:
+            otros_admins = (
+                Usuario.objects.filter(id_rol__nombre_rol=ROL_ADMINISTRADOR, estado=True)
+                .exclude(pk=self.instance.pk)
+                .exists()
+            )
+            if not otros_admins:
+                self.add_error(None, 'Debe quedar al menos un administrador activo en el sistema.')
+
+        return cleaned
 
 
 class LoginForm(AuthenticationForm):
