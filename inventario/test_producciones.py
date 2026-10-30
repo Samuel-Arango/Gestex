@@ -364,3 +364,33 @@ class ListaYFichaTests(TestCase):
     def test_produccion_inexistente_responde_404(self):
         r = self.client.get(reverse('inventario:produccion_detalle', args=[9999]))
         self.assertEqual(r.status_code, 404)
+
+
+class FechasAlEditarTests(TestCase):
+    """Al editar, las fechas guardadas deben aparecer ya cargadas en el formulario."""
+
+    def setUp(self):
+        self.operario = crear_usuario('op@taller.co', 'Operario')
+        self.client.force_login(self.operario)
+        self.produccion = crear_produccion(
+            self.operario,
+            fecha_inicio=date(2026, 1, 10),
+            fecha_entrega=date(2026, 1, 20),
+        )
+
+    def test_formulario_de_edicion_muestra_las_fechas_guardadas(self):
+        r = self.client.get(reverse('inventario:produccion_editar', args=[self.produccion.pk]))
+        self.assertEqual(r.status_code, 200)
+        # Los campos type="date" del navegador solo aceptan AAAA-MM-DD.
+        self.assertContains(r, 'name="fecha_inicio"')
+        self.assertContains(r, 'value="2026-01-10"')
+        self.assertContains(r, 'value="2026-01-20"')
+
+    def test_guardar_sin_tocar_las_fechas_conserva_las_mismas(self):
+        datos = datos_produccion(fecha_inicio='2026-01-10', fecha_entrega='2026-01-20')
+        datos.update(datos_formset([]))
+        r = self.client.post(reverse('inventario:produccion_editar', args=[self.produccion.pk]), datos)
+        self.assertEqual(r.status_code, 302)
+        self.produccion.refresh_from_db()
+        self.assertEqual(self.produccion.fecha_inicio, date(2026, 1, 10))
+        self.assertEqual(self.produccion.fecha_entrega, date(2026, 1, 20))

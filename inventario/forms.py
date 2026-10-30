@@ -38,8 +38,10 @@ class ProduccionForm(forms.ModelForm):
             'tipo': forms.TextInput(attrs={'placeholder': 'Ej. Confección', 'list': 'tipos-produccion'}),
             'descripcion': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Ej. 20 camisas básicas talla M'}),
             'cantidad_solicitada': forms.NumberInput(attrs={'min': '1', 'step': '1'}),
-            'fecha_inicio': forms.DateInput(attrs={'type': 'date'}),
-            'fecha_entrega': forms.DateInput(attrs={'type': 'date'}),
+            # format fija el formato ISO (AAAA-MM-DD) que exige el input type="date".
+            # Sin esto, el idioma español renderiza 10/01/2026 y el campo se muestra vacío al editar.
+            'fecha_inicio': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
+            'fecha_entrega': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
         }
 
     def __init__(self, *args, **kwargs):
