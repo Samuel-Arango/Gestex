@@ -169,7 +169,8 @@ class FormsetTests(TestCase):
             {'id': detalle.pk, 'producto': self.tela.pk, 'cantidad': '10', 'delete': True},
         ], iniciales=1))
         self.assertFalse(formset.is_valid())
-        self.assertIn('No se puede quitar', str(formset.errors))
+        # La regla vive en el formset, así que el mensaje está en los errores generales.
+        self.assertIn('No se puede quitar', str(formset.non_form_errors()))
 
     def test_material_sin_consumo_si_se_puede_quitar(self):
         detalle = DetalleMaterial.objects.create(

@@ -5,37 +5,25 @@
 {% block page_title %}Inicio{% endblock %}
 
 {% block content %}
+<div class="bienvenida">
+  <h2>Hola, {{ request.user.get_short_name }}</h2>
+  <p>Así va el taller hoy, {% now "d/m/Y" %}.</p>
+</div>
+
+{% if total_insumos is not None %}
 <div class="cards-grid">
 
   <article class="card card--blue">
     <div class="card-top">
       <div>
-        <p class="card-label">Telas en stock</p>
-        <p class="card-value">--</p>
-        <p class="card-trend text-muted">Pendiente de cargar datos</p>
+        <p class="card-label">Insumos activos</p>
+        <p class="card-value">{{ total_insumos }}</p>
+        <p class="card-trend text-muted">Telas, hilos, avíos y botones</p>
       </div>
-      <div class="card-icon">
-        <i class="bi bi-bag"></i>
-      </div>
+      <div class="card-icon"><i class="bi bi-scissors"></i></div>
     </div>
     <div class="card-footer">
-      <span>Metros / Rollos</span>
-    </div>
-  </article>
-
-  <article class="card card--cyan">
-    <div class="card-top">
-      <div>
-        <p class="card-label">Hilos, Avíos y Botones</p>
-        <p class="card-value">--</p>
-        <p class="card-trend text-muted">Pendiente de cargar datos</p>
-      </div>
-      <div class="card-icon">
-        <i class="bi bi-scissors"></i>
-      </div>
-    </div>
-    <div class="card-footer">
-      <span>Insumos de confección</span>
+      <a class="enlace-card" href="{% url 'inventario:lista' %}?tipo=insumo">Ver insumos</a>
     </div>
   </article>
 
@@ -43,61 +31,140 @@
     <div class="card-top">
       <div>
         <p class="card-label">Productos terminados</p>
-        <p class="card-value">--</p>
-        <p class="card-trend text-muted">Pendiente de cargar datos</p>
+        <p class="card-value">{{ total_terminados }}</p>
+        <p class="card-trend text-muted">Prendas listas para entregar</p>
       </div>
-      <div class="card-icon">
-        <i class="bi bi-box-seam"></i>
-      </div>
+      <div class="card-icon"><i class="bi bi-box-seam"></i></div>
     </div>
     <div class="card-footer">
-      <span>Prendas / Lotes</span>
+      <a class="enlace-card" href="{% url 'inventario:lista' %}?tipo=producto_terminado">Ver productos</a>
     </div>
   </article>
 
-  <article class="card card--red">
+  <article class="card {% if total_en_alerta %}card--red{% else %}card--cyan{% endif %}">
     <div class="card-top">
       <div>
-        <p class="card-label">Alertas de stock mínimo</p>
-        <p class="card-value">--</p>
-        <p class="card-trend text-danger">Sin alertas registradas</p>
+        <p class="card-label">Stock bajo</p>
+        <p class="card-value">{{ total_en_alerta }}</p>
+        <p class="card-trend {% if total_en_alerta %}text-danger{% else %}text-muted{% endif %}">
+          {% if total_en_alerta %}Conviene reponer{% else %}Todo por encima del mínimo{% endif %}
+        </p>
       </div>
-      <div class="card-icon">
-        <i class="bi bi-exclamation-triangle"></i>
-      </div>
+      <div class="card-icon"><i class="bi bi-exclamation-triangle"></i></div>
     </div>
     <div class="card-footer">
-      <span>Requiere reposición</span>
+      <a class="enlace-card" href="{% url 'inventario:reportes' %}?tipo=existencias">Ver existencias</a>
     </div>
   </article>
 
+  {% if movimientos_hoy is not None %}
+  <article class="card card--blue">
+    <div class="card-top">
+      <div>
+        <p class="card-label">Movimientos de hoy</p>
+        <p class="card-value">{{ movimientos_hoy }}</p>
+        <p class="card-trend text-muted">Entradas y salidas registradas</p>
+      </div>
+      <div class="card-icon"><i class="bi bi-arrow-left-right"></i></div>
+    </div>
+    <div class="card-footer">
+      <a class="enlace-card" href="{% url 'inventario:historial' %}">Ver historial</a>
+    </div>
+  </article>
+  {% endif %}
+
 </div>
+{% endif %}
 
 <section class="panel-grid">
 
+  {% if productos_alerta is not None %}
+  <div class="panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Por reponer</h2>
+      <p class="panel-sub">Productos activos que llegaron a su stock mínimo</p>
+    </div>
+    <div class="panel-body">
+      {% if productos_alerta %}
+        <ul class="lista-simple">
+          {% for producto in productos_alerta %}
+          <li>
+            <a href="{% url 'inventario:detalle' producto.pk %}">{{ producto.nombre }}</a>
+            <span class="unidad">{{ producto.cantidad_actual }} de mínimo {{ producto.stock_minimo }} {{ producto.unidad_medida }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <i class="bi bi-check2-circle"></i>
+          <p>Todo tiene existencias suficientes</p>
+          <small>Cuando un producto llegue a su mínimo aparecerá aquí.</small>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if ultimos_movimientos is not None %}
   <div class="panel">
     <div class="panel-header">
       <h2 class="panel-title">Movimientos recientes</h2>
-      <p class="panel-sub">Últimas entradas, salidas y movimientos en el taller</p>
+      <p class="panel-sub">Últimas entradas y salidas del taller</p>
     </div>
-    <div class="panel-body empty-state">
-      <i class="bi bi-inbox"></i>
-      <p>No hay movimientos registrados aún</p>
-      <small>Registra compras, cortes o salidas desde el módulo de inventario.</small>
+    <div class="panel-body">
+      {% if ultimos_movimientos %}
+        <ul class="lista-simple">
+          {% for movimiento in ultimos_movimientos %}
+          <li>
+            <span>
+              {% if movimiento.tipo_movimiento == 'entrada' %}
+                <span class="badge-mov badge-mov--entrada"><i class="bi bi-arrow-down"></i> Entrada</span>
+              {% else %}
+                <span class="badge-mov badge-mov--salida"><i class="bi bi-arrow-up"></i> Salida</span>
+              {% endif %}
+              {{ movimiento.producto.nombre }}
+            </span>
+            <span class="unidad">{{ movimiento.cantidad }} {{ movimiento.producto.unidad_medida }} · {{ movimiento.fecha|date:"d/m H:i" }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <i class="bi bi-inbox"></i>
+          <p>Todavía no hay movimientos</p>
+          <small>Registra una entrada o una salida para verla aquí.</small>
+        </div>
+      {% endif %}
     </div>
   </div>
+  {% endif %}
 
+  {% if producciones_activas is not None %}
   <div class="panel">
     <div class="panel-header">
-      <h2 class="panel-title">Órdenes de corte</h2>
-      <p class="panel-sub">Seguimiento de consumos de tela por referencia</p>
+      <h2 class="panel-title">Producciones en curso</h2>
+      <p class="panel-sub">{{ total_producciones_activas }} pendientes o en proceso, por fecha de entrega</p>
     </div>
-    <div class="panel-body empty-state">
-      <i class="bi bi-journal-text"></i>
-      <p>No hay órdenes de corte registradas</p>
-      <small>Controla consumo de metros por lote o pedido.</small>
+    <div class="panel-body">
+      {% if producciones_activas %}
+        <ul class="lista-simple">
+          {% for produccion in producciones_activas %}
+          <li>
+            <a href="{% url 'inventario:produccion_detalle' produccion.pk %}">#{{ produccion.pk }} · {{ produccion.tipo }}</a>
+            <span class="unidad">Entrega {{ produccion.fecha_entrega|date:"d/m/Y" }} · {{ produccion.total_materiales }} materiales</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <i class="bi bi-scissors"></i>
+          <p>No hay producciones en curso</p>
+          <small>Crea una orden de confección para empezar.</small>
+        </div>
+      {% endif %}
     </div>
   </div>
+  {% endif %}
 
 </section>
 {% endblock %}

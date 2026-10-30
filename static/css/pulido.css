@@ -1,0 +1,218 @@
+/*
+ * Ajustes finales de interfaz (Fase 8).
+ * - Estilos del dashboard de inicio.
+ * - Diseño adaptable para celular: tablas con scroll, barras de herramientas
+ *   apiladas, botones de tamaño táctil y menú lateral deslizable.
+ */
+
+/* ---------- Dashboard de inicio ---------- */
+
+.bienvenida {
+  margin-bottom: 18px;
+}
+
+.bienvenida h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.bienvenida p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.enlace-card {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.enlace-card:hover {
+  text-decoration: underline;
+}
+
+.lista-simple {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lista-simple li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.lista-simple li:last-child {
+  border-bottom: none;
+}
+
+.lista-simple a {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.lista-simple a:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+/* Tarjetas del dashboard: el valor se alinea bien aunque sea grande */
+.card-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Accesibilidad: foco visible con teclado ---------- */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(56, 189, 248, 0.6);
+  outline-offset: 2px;
+}
+
+/* ---------- Diseño adaptable ---------- */
+
+/* Tablas: scroll horizontal dentro de su tarjeta, sin desbordar la página */
+.table-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 980px) {
+  .dash-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Encabezados de página en columna */
+  .page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-head > div:first-child {
+    width: 100%;
+  }
+
+  /* Barra de búsqueda y filtros en una columna */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar select,
+  .toolbar input[type="search"],
+  .toolbar .btn-primary-app,
+  .toolbar .btn-secondary-app,
+  .toolbar .filtro-fecha {
+    width: 100%;
+  }
+
+  .toolbar .filtro-fecha input {
+    width: 100%;
+  }
+
+  /* Botones de acción apilados y del ancho de la pantalla */
+  .form-actions,
+  .exportar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-actions a,
+  .form-actions button,
+  .exportar a {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .paginacion {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  /* Tamaño táctil mínimo recomendado (44px) en botones de acción */
+  .btn-icono {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tab-reporte {
+    padding: 10px 14px;
+  }
+
+  .stat-row {
+    flex-direction: column;
+  }
+
+  .stat-chip {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Contenido con menos margen para aprovechar el ancho del celular */
+  .dash-content {
+    padding: 18px 14px;
+    gap: 20px;
+  }
+
+  .dash-header {
+    padding: 14px;
+  }
+
+  .dash-footer {
+    padding: 14px;
+  }
+
+  .panel {
+    min-height: 0;
+  }
+}
+
+/* Menú lateral deslizable: ocupa todo el alto y se puede cerrar tocando fuera */
+@media (max-width: 980px) {
+  .dash-sidebar {
+    box-shadow: 8px 0 30px rgba(15, 27, 45, 0.35);
+  }
+}
+
+/* ---------- Ayudas visuales ---------- */
+
+/* Los títulos abreviados explican su contenido al pasar el cursor (tooltip nativo) */
+[title] {
+  cursor: default;
+}
+
+a[title],
+button[title] {
+  cursor: pointer;
+}
+
+/* Reduce el movimiento para usuarios que lo desactivan en el sistema */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
