@@ -170,6 +170,9 @@ Los permisos de cada rol están en `accounts/permisos.py`. Si agregas un módulo
 - **El historial es inmutable.** Un movimiento no se edita ni se borra. Para corregir un error se registra un movimiento nuevo.
 - **Los productos no se borran.** Se desactivan, y su historial se conserva.
 - **Alerta de stock bajo.** Un producto activo con existencias menores o iguales a su stock mínimo se marca en el listado, el dashboard y los reportes.
+- **Producción → inventario.** Cada producción indica el producto terminado que resulta (se crea solo si no existe). Al marcarla como **Terminada**, sus unidades entran al inventario una sola vez, como una entrada ligada a la producción. El dashboard lo muestra sin cargarlo a mano.
+- **Una producción ingresada no vuelve atrás** ni cambia de producto; las correcciones se hacen con movimientos nuevos.
+- **Consumo en lote.** En "Registrar material usado" se escribe lo gastado de cada material en una sola pantalla. Si un material no alcanza, no se registra ninguno.
 - **Salidas ligadas a una producción** suman al material utilizado de esa producción.
 - **Lista de materiales:** un insumo aparece una sola vez por producción, solo se pueden usar insumos activos, y no se puede quitar un material que ya tiene consumo.
 
@@ -181,7 +184,7 @@ Los permisos de cada rol están en `accounts/permisos.py`. Si agregas un módulo
 python manage.py test accounts dashboard inventario
 ```
 
-Son **233 pruebas** que cubren:
+Son **259 pruebas** que cubren:
 
 - Creación de usuarios y cifrado de contraseñas.
 - Registro, inicio de sesión, bloqueo por intentos fallidos y cierre de sesión.

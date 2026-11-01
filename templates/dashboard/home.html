@@ -30,9 +30,9 @@
   <article class="card card--orange">
     <div class="card-top">
       <div>
-        <p class="card-label">Productos terminados</p>
-        <p class="card-value">{{ total_terminados }}</p>
-        <p class="card-trend text-muted">Prendas listas para entregar</p>
+        <p class="card-label">Prendas terminadas en stock</p>
+        <p class="card-value">{{ total_unidades_terminadas }}</p>
+        <p class="card-trend text-muted">Se suman solas al terminar una producción</p>
       </div>
       <div class="card-icon"><i class="bi bi-box-seam"></i></div>
     </div>
@@ -77,6 +77,59 @@
 {% endif %}
 
 <section class="panel-grid">
+
+  {% if productos_terminados_stock is not None %}
+  <div class="panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Productos terminados en stock</h2>
+      <p class="panel-sub">Se actualiza sola al terminar cada producción</p>
+    </div>
+    <div class="panel-body">
+      {% if productos_terminados_stock %}
+        <ul class="lista-simple">
+          {% for producto in productos_terminados_stock %}
+          <li>
+            <a href="{% url 'inventario:detalle' producto.pk %}">{{ producto.nombre }}</a>
+            <strong>{{ producto.cantidad_actual }} <span class="unidad">{{ producto.unidad_medida }}</span></strong>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <i class="bi bi-box-seam"></i>
+          <p>Aún no hay prendas terminadas</p>
+          <small>Cuando termines una producción, sus prendas aparecerán aquí.</small>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if ultimas_terminadas is not None %}
+  <div class="panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Producciones terminadas</h2>
+      <p class="panel-sub">Últimas órdenes cerradas</p>
+    </div>
+    <div class="panel-body">
+      {% if ultimas_terminadas %}
+        <ul class="lista-simple">
+          {% for produccion in ultimas_terminadas %}
+          <li>
+            <a href="{% url 'inventario:produccion_detalle' produccion.pk %}">#{{ produccion.pk }} · {{ produccion.producto_terminado.nombre|default:produccion.tipo }}</a>
+            <span class="unidad">{{ produccion.cantidad_solicitada }} pzas. · entrega {{ produccion.fecha_entrega|date:"d/m/Y" }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <i class="bi bi-check2-circle"></i>
+          <p>No hay producciones terminadas todavía</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 
   {% if productos_alerta is not None %}
   <div class="panel">

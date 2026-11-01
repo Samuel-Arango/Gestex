@@ -18,12 +18,16 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.db.models import F
 
+from .busqueda import campo_normalizado, normalizar_texto
 from .models import (
     DetalleMaterial,
     EstadoProducto,
+    EstadoProduccion,
     MovimientoInventario,
+    Produccion,
     Producto,
     TipoMovimiento,
+    TipoProducto,
 )
 
 CANTIDAD_MINIMA = Decimal('0.01')
@@ -145,3 +149,109 @@ def registrar_movimiento(*, producto, usuario, tipo, cantidad, motivo, produccio
     # Devuelve al llamador el producto con las existencias actualizadas.
     producto.refresh_from_db(fields=['cantidad_actual'])
     return movimiento
+
+
+# ---------------------------------------------------------------------------
+# Producciones: producto terminado, ingreso automático y consumo en lote
+# ---------------------------------------------------------------------------
+
+UNIDAD_PRODUCTO_TERMINADO = 'unidades'
+
+
+def buscar_producto_por_nombre(nombre, tipo=None):
+    """
+    Busca un producto por nombre sin distinguir mayúsculas ni tildes.
+    (iexact de SQLite no ignora tildes en mayúsculas, por eso se usa la normalización propia.)
+    """
+    consulta = Producto.objects.annotate(nombre_normalizado=campo_normalizado('nombre')).filter(
+        nombre_normalizado=normalizar_texto(' '.join(nombre.split())),
+    )
+    if tipo is not None:
+        consulta = consulta.filter(tipo=tipo)
+    return consulta.first()
+
+
+def obtener_o_crear_producto_terminado(nombre):
+    """
+    Devuelve el producto terminado con ese nombre; si no existe, lo crea.
+    Si el nombre ya existe como insumo, no se permite: son cosas distintas.
+    """
+    nombre = ' '.join(nombre.split())
+    existente = buscar_producto_por_nombre(nombre)
+    if existente is not None:
+        if existente.tipo != TipoProducto.PRODUCTO_TERMINADO:
+            raise ErrorMovimiento(
+                f'"{existente.nombre}" ya existe como insumo. Usa otro nombre para el producto terminado.'
+            )
+        return existente
+
+    return Producto.objects.create(
+        nombre=nombre,
+        tipo=TipoProducto.PRODUCTO_TERMINADO,
+        unidad_medida=UNIDAD_PRODUCTO_TERMINADO,
+        stock_minimo=Decimal('0'),
+        descripcion='Creado automáticamente desde una producción.',
+    )
+
+
+def finalizar_produccion(produccion, usuario):
+    """
+    Ingresa al inventario las unidades terminadas de una producción.
+
+    Se ejecuta una sola vez: si ya se registró, no hace nada. Las unidades entran
+    como una entrada normal, ligada a la producción, para que quede en el historial.
+    """
+    if produccion.estado != EstadoProduccion.TERMINADA:
+        raise ErrorMovimiento('La producción debe estar marcada como Terminada para ingresar sus unidades.')
+    if produccion.producto_terminado_id is None:
+        raise ErrorMovimiento('Indica el producto terminado de esta producción antes de cerrarla.')
+
+    with transaction.atomic():
+        bloqueada = Produccion.objects.select_for_update().get(pk=produccion.pk)
+        if bloqueada.ingreso_registrado:
+            return None
+
+        movimiento = registrar_movimiento(
+            producto=bloqueada.producto_terminado,
+            usuario=usuario,
+            tipo=TipoMovimiento.ENTRADA,
+            cantidad=Decimal(bloqueada.cantidad_solicitada),
+            motivo=f'Producción #{bloqueada.pk} terminada',
+            produccion=bloqueada,
+        )
+        Produccion.objects.filter(pk=bloqueada.pk).update(ingreso_registrado=True)
+        produccion.ingreso_registrado = True
+        return movimiento
+
+
+def registrar_consumo_produccion(produccion, usuario, consumos):
+    """
+    Registra varias salidas de material para una producción en una sola operación.
+
+    consumos: {id_del_material: cantidad}. Las cantidades en cero se omiten.
+    Si una sola salida falla (por ejemplo, falta stock), no se registra ninguna.
+    """
+    if produccion.estado in (EstadoProduccion.TERMINADA, EstadoProduccion.CANCELADA):
+        raise ErrorMovimiento('Esta producción ya está cerrada; no se le pueden registrar más consumos.')
+
+    pendientes = {pk: _validar_cantidad(cantidad) for pk, cantidad in consumos.items() if cantidad}
+    if not pendientes:
+        raise ErrorMovimiento('Indica la cantidad utilizada de al menos un material.')
+
+    materiales = (
+        DetalleMaterial.objects.select_related('producto')
+        .filter(produccion=produccion, pk__in=pendientes.keys())
+    )
+
+    registrados = []
+    with transaction.atomic():
+        for material in materiales:
+            registrados.append(registrar_movimiento(
+                producto=material.producto,
+                usuario=usuario,
+                tipo=TipoMovimiento.SALIDA,
+                cantidad=pendientes[material.pk],
+                motivo=f'Consumo en producción #{produccion.pk}',
+                produccion=produccion,
+            ))
+    return registrados

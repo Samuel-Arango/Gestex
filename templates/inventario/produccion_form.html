@@ -71,6 +71,19 @@
       {% endif %}
     </div>
 
+    <datalist id="productos-terminados">
+      {% for nombre in productos_terminados %}
+        <option value="{{ nombre }}"></option>
+      {% endfor %}
+    </datalist>
+
+    <div class="form-row">
+      <label for="{{ form.producto_nombre.id_for_label }}">{{ form.producto_nombre.label }}</label>
+      {{ form.producto_nombre }}
+      <p class="help">{{ form.producto_nombre.help_text }}</p>
+      {{ form.producto_nombre.errors }}
+    </div>
+
     <div class="form-row">
       <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }} *</label>
       {{ form.descripcion }}

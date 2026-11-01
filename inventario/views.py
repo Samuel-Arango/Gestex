@@ -18,6 +18,7 @@ from django.views.generic import CreateView, DetailView, FormView, ListView, Tem
 from .busqueda import campo_normalizado, normalizar_texto
 from .exportacion import respuesta_csv, respuesta_pdf
 from .forms import (
+    ConsumoProduccionForm,
     DetalleMaterialFormSet,
     HistorialFiltroForm,
     MovimientoForm,
@@ -35,7 +36,12 @@ from .models import (
     TipoProducto,
 )
 from .reportes import TIPOS_REPORTE, descripcion_filtros, generar_reporte, puede_ver_reporte
-from .services import ErrorMovimiento, registrar_movimiento
+from .services import (
+    ErrorMovimiento,
+    finalizar_produccion,
+    registrar_consumo_produccion,
+    registrar_movimiento,
+)
 
 # Todas las vistas exigen sesión (LoginRequiredMixin) y un permiso del modelo
 # (PermissionRequiredMixin). Los permisos por rol están en accounts/permisos.py.
@@ -504,11 +510,26 @@ class ProduccionFormularioView(LoginRequiredMixin, PermissionRequiredMixin, View
         formset = DetalleMaterialFormSet(request.POST, instance=produccion)
 
         if form.is_valid() and formset.is_valid():
-            with transaction.atomic():
-                produccion = form.save()
-                formset.save()
-            messages.success(request, f'Producción #{produccion.pk} guardada.')
-            return redirect(reverse('inventario:produccion_detalle', args=[produccion.pk]))
+            # Guardar y, si la producción queda Terminada, ingresar sus unidades al inventario:
+            # todo en una sola transacción. Si el ingreso falla, no se guarda nada.
+            try:
+                with transaction.atomic():
+                    produccion = form.save()
+                    formset.save()
+                    movimiento = None
+                    if produccion.estado == EstadoProduccion.TERMINADA:
+                        movimiento = finalizar_produccion(produccion, request.user)
+            except ErrorMovimiento as error:
+                form.add_error(None, str(error))
+            else:
+                mensaje = f'Producción #{produccion.pk} guardada.'
+                if movimiento is not None:
+                    mensaje += (
+                        f' Se ingresaron {movimiento.cantidad} {produccion.producto_terminado.unidad_medida} '
+                        f'de "{produccion.producto_terminado.nombre}" al inventario.'
+                    )
+                messages.success(request, mensaje)
+                return redirect(reverse('inventario:produccion_detalle', args=[produccion.pk]))
 
         return self._responder(form, formset, produccion)
 
@@ -518,7 +539,94 @@ class ProduccionFormularioView(LoginRequiredMixin, PermissionRequiredMixin, View
             'formset': formset,
             'produccion': produccion if produccion.pk else None,
             'titulo': f'Editar producción #{produccion.pk}' if produccion.pk else 'Nueva producción',
+            # Sugerencias para el campo de producto terminado (datalist).
+            'productos_terminados': Producto.objects.filter(
+                tipo=TipoProducto.PRODUCTO_TERMINADO,
+            ).order_by('nombre').values_list('nombre', flat=True),
         })
+
+
+CONSUMO_CERRADO = (EstadoProduccion.TERMINADA, EstadoProduccion.CANCELADA)
+
+
+class ProduccionConsumoView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
+    """
+    Registra de una vez el material utilizado en una producción.
+    Una sola pantalla con una casilla por material, en lugar de una salida por cada insumo.
+    """
+
+    permission_required = 'inventario.add_movimientoinventario'
+    form_class = ConsumoProduccionForm
+    template_name = 'inventario/produccion_consumo.html'
+
+    def get_produccion(self):
+        if not hasattr(self, '_produccion'):
+            self._produccion = get_object_or_404(
+                Produccion.objects.select_related('producto_terminado'), pk=self.kwargs['pk'],
+            )
+        return self._produccion
+
+    def get(self, request, *args, **kwargs):
+        if self.get_produccion().estado in CONSUMO_CERRADO:
+            messages.info(request, 'Esta producción ya está cerrada; no admite más consumos.')
+            return redirect(reverse('inventario:produccion_detalle', args=[self.kwargs['pk']]))
+        return super().get(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['materiales'] = self.get_produccion().detalles.select_related('producto').order_by('producto__nombre')
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = context['form']
+        # Cada material con su casilla ya enlazada (para mostrar el valor y los errores).
+        context['produccion'] = self.get_produccion()
+        context['filas'] = [
+            (material, form[form.nombre_campo(material)]) for material in form.materiales
+        ]
+        return context
+
+    def form_valid(self, form):
+        try:
+            registrados = registrar_consumo_produccion(
+                self.get_produccion(), self.request.user, form.consumos(),
+            )
+        except ErrorMovimiento as error:
+            form.add_error(None, str(error))
+            return self.form_invalid(form)
+
+        messages.success(self.request, f'Consumo registrado: {len(registrados)} material(es) actualizado(s).')
+        return redirect(reverse('inventario:produccion_detalle', args=[self.kwargs['pk']]))
+
+
+@login_required
+@permission_required('inventario.change_produccion', raise_exception=True)
+@require_POST
+def produccion_terminar(request, pk):
+    """
+    Marca la producción como Terminada e ingresa sus unidades al inventario.
+    Un solo botón: no hay que volver a cargar el producto ni la cantidad.
+    """
+    produccion = get_object_or_404(Produccion.objects.select_related('producto_terminado'), pk=pk)
+    if produccion.estado in CONSUMO_CERRADO:
+        messages.info(request, 'Esta producción ya está cerrada.')
+        return redirect(reverse('inventario:produccion_detalle', args=[pk]))
+
+    try:
+        with transaction.atomic():
+            produccion.estado = EstadoProduccion.TERMINADA
+            produccion.save(update_fields=['estado'])
+            movimiento = finalizar_produccion(produccion, request.user)
+    except ErrorMovimiento as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f'Producción terminada. {movimiento.cantidad} {produccion.producto_terminado.unidad_medida} '
+            f'de "{produccion.producto_terminado.nombre}" ya están en el inventario.',
+        )
+    return redirect(reverse('inventario:produccion_detalle', args=[pk]))
 
 
 class ProduccionCrearView(ProduccionFormularioView):

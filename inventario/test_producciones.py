@@ -100,7 +100,7 @@ class ReglasDelFormularioTests(TestCase):
 
     def test_estado_valido_al_editar(self):
         produccion = crear_produccion(self.operario)
-        form = ProduccionForm(datos_produccion(estado=EstadoProduccion.TERMINADA), instance=produccion)
+        form = ProduccionForm(datos_produccion(estado=EstadoProduccion.EN_PROCESO), instance=produccion)
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_detalle_solo_ofrece_insumos_activos(self):
@@ -353,9 +353,9 @@ class ListaYFichaTests(TestCase):
         r = self.client.get(reverse('inventario:produccion_detalle', args=[self.pendiente.pk]))
         self.assertContains(r, 'Corte lote 3')
 
-    def test_ficha_ofrece_registrar_salida_prellenada(self):
+    def test_ficha_ofrece_registrar_material_usado(self):
         r = self.client.get(reverse('inventario:produccion_detalle', args=[self.pendiente.pk]))
-        self.assertContains(r, f'{reverse("inventario:salida")}?produccion={self.pendiente.pk}')
+        self.assertContains(r, reverse('inventario:produccion_consumo', args=[self.pendiente.pk]))
 
     def test_formulario_de_salida_recibe_la_produccion(self):
         r = self.client.get(reverse('inventario:salida'), {'produccion': self.pendiente.pk})

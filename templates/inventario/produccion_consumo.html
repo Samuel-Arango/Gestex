@@ -1,0 +1,61 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Material usado · Producción #{{ produccion.pk }} | Gestex{% endblock %}
+{% block page_title %}Material usado{% endblock %}
+{% block nav_producciones %}active{% endblock %}
+
+{% block content %}
+<div class="page-head" style="margin-bottom: 20px;">
+  <div>
+    <p style="margin-bottom: 6px;">
+      <a href="{% url 'inventario:produccion_detalle' produccion.pk %}" class="enlace-volver"><i class="bi bi-arrow-left"></i> Volver a la producción</a>
+    </p>
+    <h2>Material usado · Producción #{{ produccion.pk }}</h2>
+    <p>Escribe lo que realmente gastaste de cada material. Las casillas ya traen lo que falta; deja en blanco lo que no usaste.</p>
+  </div>
+</div>
+
+<form method="post" class="form-card form-card--ancho" novalidate id="form-consumo">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="flash flash--error" role="alert">
+      <i class="bi bi-exclamation-circle"></i>
+      <span>{{ form.non_field_errors|join:' ' }}</span>
+    </div>
+  {% endif %}
+
+  {% if filas %}
+  <div class="consumo-lista">
+    {% for material, campo in filas %}
+    <div class="consumo-fila">
+      <div class="consumo-fila__nombre">
+        <strong>{{ material.producto.nombre }}</strong>
+        <span class="unidad">{{ material.cantidad_utilizada }} de {{ material.cantidad_requerida }} {{ material.producto.unidad_medida }} usados</span>
+      </div>
+      <div class="consumo-fila__campo">
+        <label for="{{ campo.id_for_label }}">Usado ahora ({{ material.producto.unidad_medida }})</label>
+        {{ campo }}
+        <p class="help">{{ campo.help_text }}</p>
+        {{ campo.errors }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="empty-state" style="padding: 36px 20px;">
+      <i class="bi bi-box-seam"></i>
+      <p>Esta producción no tiene materiales</p>
+      <small>Agrega los materiales en Editar antes de registrar su consumo.</small>
+    </div>
+  {% endif %}
+
+  {% if filas %}
+  <div class="form-actions">
+    <button type="submit" class="btn-primary-app"><i class="bi bi-check2"></i> Guardar consumo</button>
+    <a class="btn-secondary-app" href="{% url 'inventario:produccion_detalle' produccion.pk %}">Cancelar</a>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

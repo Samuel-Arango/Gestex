@@ -17,13 +17,20 @@
     </p>
   </div>
   <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-    {% if puede_movimientos and produccion.estado != 'Cancelada' %}
-    <a class="btn-secondary-app" href="{% url 'inventario:salida' %}?produccion={{ produccion.pk }}" title="Registrar material que sale para esta producción">
-      <i class="bi bi-arrow-up-circle"></i> Registrar salida de material
+    {% if puede_movimientos and produccion.estado != 'Terminada' and produccion.estado != 'Cancelada' %}
+    <a class="btn-secondary-app" href="{% url 'inventario:produccion_consumo' produccion.pk %}" title="Registrar de una vez todo el material usado">
+      <i class="bi bi-clipboard-check"></i> Registrar material usado
     </a>
     {% endif %}
+    {% if puede_editar and produccion.estado != 'Terminada' and produccion.estado != 'Cancelada' and produccion.producto_terminado %}
+    <form method="post" action="{% url 'inventario:produccion_terminar' produccion.pk %}" class="inline-form"
+          onsubmit="return confirm('¿Terminar la producción? Se ingresarán {{ produccion.cantidad_solicitada }} {{ produccion.producto_terminado.unidad_medida }} de {{ produccion.producto_terminado.nombre|escapejs }} al inventario.');">
+      {% csrf_token %}
+      <button type="submit" class="btn-primary-app"><i class="bi bi-flag"></i> Terminar producción</button>
+    </form>
+    {% endif %}
     {% if puede_editar %}
-    <a class="btn-primary-app" href="{% url 'inventario:produccion_editar' produccion.pk %}">
+    <a class="btn-secondary-app" href="{% url 'inventario:produccion_editar' produccion.pk %}">
       <i class="bi bi-pencil"></i> Editar
     </a>
     {% endif %}
@@ -46,6 +53,21 @@
   <div class="stat-chip">
     <span class="stat-chip__valor">{{ materiales|length }}</span>
     <span class="stat-chip__texto">Materiales</span>
+  </div>
+  <div class="stat-chip">
+    {% if produccion.producto_terminado %}
+      <a class="stat-chip__valor stat-chip__valor--texto" href="{% url 'inventario:detalle' produccion.producto_terminado.pk %}">{{ produccion.producto_terminado.nombre }}</a>
+      <span class="stat-chip__texto">
+        {% if produccion.ingreso_registrado %}
+          <i class="bi bi-check-circle"></i> Ya ingresó al inventario
+        {% else %}
+          Se ingresa al terminar la producción
+        {% endif %}
+      </span>
+    {% else %}
+      <span class="stat-chip__valor stat-chip__valor--texto">Sin definir</span>
+      <span class="stat-chip__texto">Indica el producto en Editar</span>
+    {% endif %}
   </div>
 </div>
 

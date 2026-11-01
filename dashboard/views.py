@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Q, Sum
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -7,8 +7,8 @@ from inventario.models import (
     EstadoProduccion,
     EstadoProducto,
     MovimientoInventario,
-    Producto,
     Produccion,
+    Producto,
     TipoProducto,
 )
 
@@ -23,6 +23,20 @@ def dashboard_home(request):
     contexto = {'title': 'Dashboard'}
 
     if usuario.has_perm('inventario.view_producto'):
+        # Productos terminados: se alimentan solos al terminar una producción.
+        terminados = Producto.objects.filter(
+            tipo=TipoProducto.PRODUCTO_TERMINADO, estado=EstadoProducto.ACTIVO,
+        )
+        contexto.update({
+            'total_unidades_terminadas': terminados.aggregate(total=Sum('cantidad_actual'))['total'] or 0,
+            'productos_terminados_stock': terminados.filter(cantidad_actual__gt=0).order_by('-cantidad_actual')[:6],
+            'ultimas_terminadas': (
+                Produccion.objects.filter(estado=EstadoProduccion.TERMINADA)
+                .select_related('producto_terminado')
+                .order_by('-fecha_entrega', '-id')[:5]
+            ),
+        })
+
         activos = Producto.objects.filter(estado=EstadoProducto.ACTIVO)
         resumen = activos.aggregate(
             insumos=Count('id', filter=Q(tipo=TipoProducto.INSUMO)),

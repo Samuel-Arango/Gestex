@@ -131,6 +131,21 @@ class Produccion(models.Model):
         choices=EstadoProduccion.choices,
         default=EstadoProduccion.PENDIENTE,
     )
+    # Producto terminado que resulta de la producción. Al terminarla, sus unidades
+    # entran al inventario automáticamente (ver inventario/services.py).
+    producto_terminado = models.ForeignKey(
+        Producto,
+        on_delete=models.PROTECT,
+        related_name='producciones',
+        verbose_name='producto terminado',
+        null=True,
+        blank=True,
+        limit_choices_to={'tipo': TipoProducto.PRODUCTO_TERMINADO},
+    )
+    # Marca para no ingresar dos veces las unidades de una misma producción.
+    ingreso_registrado = models.BooleanField(
+        'ingreso al inventario registrado', default=False, editable=False,
+    )
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

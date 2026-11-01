@@ -8,16 +8,34 @@ from django.forms.models import BaseInlineFormSet, inlineformset_factory
 from .models import (
     DetalleMaterial,
     EstadoProducto,
+    EstadoProduccion,
     Produccion,
     Producto,
     TipoMovimiento,
     TipoProducto,
 )
+from .services import buscar_producto_por_nombre, obtener_o_crear_producto_terminado
 from .reportes import TIPOS_REPORTE
 
 
 class ProduccionForm(forms.ModelForm):
     """Datos generales de una producción (la lista de materiales va en DetalleMaterialFormSet)."""
+
+    # Campo de texto y no un desplegable: si el producto no existe, se crea solo.
+    producto_nombre = forms.CharField(
+        label='Producto que se va a obtener',
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ej. Camisa básica blanca',
+            'list': 'productos-terminados',
+            'autocomplete': 'off',
+        }),
+        help_text=(
+            'Si no existe en el inventario, se crea automáticamente. '
+            'Al terminar la producción, sus unidades entran al inventario solas.'
+        ),
+    )
 
     class Meta:
         model = Produccion
@@ -49,9 +67,56 @@ class ProduccionForm(forms.ModelForm):
         # Una producción nueva empieza como "Pendiente"; el estado se cambia al editar.
         if self.instance.pk is None:
             self.fields.pop('estado')
+        if self.instance.producto_terminado_id:
+            self.initial['producto_nombre'] = self.instance.producto_terminado.nombre
 
     def clean_descripcion(self):
         return ' '.join(self.cleaned_data['descripcion'].split())
+
+    def clean_producto_nombre(self):
+        nombre = ' '.join(self.cleaned_data.get('producto_nombre', '').split())
+        if nombre and buscar_producto_por_nombre(nombre, tipo=TipoProducto.INSUMO):
+            raise ValidationError(
+                f'"{nombre}" ya existe como insumo. Usa otro nombre para el producto terminado.'
+            )
+        return nombre
+
+    def clean(self):
+        cleaned = super().clean()
+        nombre = cleaned.get('producto_nombre', '')
+        estado = cleaned.get('estado', self.instance.estado)
+
+        if self.instance.pk and self.instance.ingreso_registrado:
+            # Las unidades ya están en el inventario: no se puede deshacer ni cambiar el producto.
+            if estado != EstadoProduccion.TERMINADA:
+                self.add_error(
+                    'estado',
+                    'Esta producción ya ingresó sus unidades al inventario y no puede volver a otro estado.',
+                )
+            actual = self.instance.producto_terminado.nombre if self.instance.producto_terminado_id else ''
+            if nombre.lower() != actual.lower():
+                self.add_error(
+                    'producto_nombre',
+                    'No se puede cambiar el producto de una producción que ya ingresó al inventario.',
+                )
+
+        if estado == EstadoProduccion.TERMINADA and not nombre:
+            self.add_error(
+                'producto_nombre',
+                'Indica el producto terminado para ingresar sus unidades al inventario.',
+            )
+        return cleaned
+
+    def save(self, commit=True):
+        produccion = super().save(commit=False)
+        nombre = self.cleaned_data.get('producto_nombre')
+        if nombre and not produccion.ingreso_registrado:
+            produccion.producto_terminado = obtener_o_crear_producto_terminado(nombre)
+        elif not nombre and not produccion.ingreso_registrado:
+            produccion.producto_terminado = None
+        if commit:
+            produccion.save()
+        return produccion
 
 
 class DetalleMaterialForm(forms.ModelForm):
@@ -133,6 +198,54 @@ DetalleMaterialFormSet = inlineformset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+class ConsumoProduccionForm(forms.Form):
+    """
+    Consumo de todos los materiales de una producción en una sola pantalla.
+
+    Se crea una casilla por cada material, prellenada con lo que aún falta
+    (requerido menos utilizado). Solo se registran las casillas con cantidad.
+    """
+
+    def __init__(self, *args, materiales, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.materiales = list(materiales)
+        for material in self.materiales:
+            pendiente = max(material.cantidad_requerida - material.cantidad_utilizada, Decimal('0'))
+            unidad = material.producto.unidad_medida
+            self.fields[self.nombre_campo(material)] = forms.DecimalField(
+                label=material.producto.nombre,
+                required=False,
+                min_value=Decimal('0'),
+                max_digits=10,
+                decimal_places=2,
+                initial=pendiente if pendiente > 0 else None,
+                widget=forms.NumberInput(attrs={
+                    'min': '0',
+                    'step': '0.01',
+                    'inputmode': 'decimal',
+                    'placeholder': '0',
+                    'data-disponible': str(material.producto.cantidad_actual),
+                    'data-unidad': unidad,
+                }),
+                help_text=(
+                    f'Requerido {material.cantidad_requerida} · utilizado {material.cantidad_utilizada} '
+                    f'· disponible {material.producto.cantidad_actual} {unidad}'
+                ),
+            )
+
+    @staticmethod
+    def nombre_campo(material):
+        return f'material_{material.pk}'
+
+    def consumos(self):
+        """Diccionario {id_del_material: cantidad} con las casillas que traen valor."""
+        return {
+            material.pk: self.cleaned_data.get(self.nombre_campo(material))
+            for material in self.materiales
+            if self.cleaned_data.get(self.nombre_campo(material))
+        }
 
 
 class SelectConStock(forms.Select):
