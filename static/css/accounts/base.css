@@ -1,0 +1,38 @@
+/* Variables y reset de las páginas de acceso. */
+
+/* Variables de color, radio y sombra */
+:root {
+  --bg: #0b1220;
+  --bg-soft: #101a2e;
+  --panel: #0e1728;
+  --card: #ffffff;
+  --field-bg: #f6f8fb;
+  --border: #dfe6f0;
+  --text: #0f1b2d;
+  --muted: #64748b;
+  --brand: #2563eb;
+  --brand-2: #38bdf8;
+  --accent: #f59e0b;
+  --danger: #e5484d;
+  --danger-soft: #fdecec;
+  --radius: 16px;
+  --shadow: 0 24px 60px rgba(15, 27, 45, 0.18);
+}
+
+/* Base: reset de caja y fondo de página */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body.login-page {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}

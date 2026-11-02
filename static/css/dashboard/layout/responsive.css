@@ -1,0 +1,57 @@
+/* Ajustes para tablet y celular (pantallas de hasta 1180 px). */
+
+/* Responsive */
+@media (max-width: 1180px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .dash-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 10;
+  }
+
+  .dash-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .dash-header {
+    padding: 16px 20px;
+  }
+
+  .dash-content {
+    padding: 22px 20px;
+  }
+
+  .dash-footer {
+    padding: 16px 20px 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .header-right {
+    display: none;
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}

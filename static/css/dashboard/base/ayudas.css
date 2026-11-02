@@ -1,0 +1,23 @@
+/* Tooltips nativos y respeto por la preferencia de reducir movimiento. */
+
+/* ---------- Ayudas visuales ---------- */
+
+/* Los títulos abreviados explican su contenido al pasar el cursor (tooltip nativo) */
+[title] {
+  cursor: default;
+}
+
+a[title],
+button[title] {
+  cursor: pointer;
+}
+
+/* Reduce el movimiento para usuarios que lo desactivan en el sistema */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

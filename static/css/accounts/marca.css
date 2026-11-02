@@ -1,0 +1,134 @@
+/* Diseño de las dos columnas y del panel de marca. */
+
+/* Layout: dos columnas (marca y formulario) */
+.login-shell {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  min-height: 100vh;
+}
+
+/* Columna izquierda: panel de marca con destacados */
+.login-brand {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 40px;
+  padding: 56px;
+  color: #eaf1ff;
+  background:
+    radial-gradient(1200px 700px at -10% -10%, rgba(56, 189, 248, 0.22), transparent 60%),
+    linear-gradient(150deg, #0d1730 0%, #12203d 45%, #0a1122 100%);
+}
+
+.brand-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.brand-glow--one {
+  width: 340px;
+  height: 340px;
+  background: var(--brand);
+  top: -80px;
+  right: -60px;
+}
+
+.brand-glow--two {
+  width: 300px;
+  height: 300px;
+  background: var(--accent);
+  bottom: -110px;
+  left: -80px;
+  opacity: 0.28;
+}
+
+.brand-content {
+  position: relative;
+  z-index: 1;
+  max-width: 520px;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(56, 189, 248, 0.18));
+  border: 1px solid rgba(146, 184, 255, 0.35);
+  color: var(--brand-2);
+  backdrop-filter: blur(6px);
+}
+
+.brand-logo svg {
+  width: 30px;
+  height: 30px;
+}
+
+.brand-name {
+  margin: 22px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--brand-2);
+}
+
+.brand-title {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.brand-features {
+  list-style: none;
+  margin: 34px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.brand-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #c3d2ee;
+}
+
+.feature-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.22);
+  border: 1px solid rgba(120, 165, 255, 0.45);
+  color: #8fd0ff;
+}
+
+.feature-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.brand-footer {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 13px;
+  color: #7f92b8;
+}

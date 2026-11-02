@@ -1,0 +1,13 @@
+/* Pie de página del panel. */
+
+/* Footer */
+.dash-footer {
+  padding: 16px 34px 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dash-footer p {
+  margin: 0;
+}

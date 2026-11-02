@@ -1,0 +1,56 @@
+/* Reportes: pestañas, exportación y notas. */
+
+/* Reportes */
+.tabs-reporte {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-reporte {
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tab-reporte:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  color: var(--brand);
+}
+
+.tab-reporte--activo {
+  background: linear-gradient(135deg, var(--brand) 0%, #1d4ed8 100%);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.exportar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.exportar__texto {
+  font-size: 13.5px;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.nota-reporte {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stat-chip__valor--texto {
+  font-size: 16px;
+  font-weight: 700;
+}

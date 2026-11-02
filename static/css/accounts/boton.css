@@ -1,0 +1,82 @@
+/* Botón principal de envío y adaptación en pantallas pequeñas. */
+
+/* Botón principal de envío */
+.btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px 18px;
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--brand) 0%, #1d4ed8 100%);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.28);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.btn-submit svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.16s ease;
+}
+
+.btn-submit:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.36);
+  transform: translateY(-1px);
+}
+
+.btn-submit:hover svg {
+  transform: translateX(3px);
+}
+
+.login-footer {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border);
+  text-align: center;
+}
+
+.login-footer p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+@media (max-width: 980px) {
+  .login-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .login-brand {
+    padding: 40px 32px;
+    gap: 26px;
+  }
+
+  .brand-features {
+    display: none;
+  }
+
+  .login-main {
+    padding: 32px 20px 48px;
+  }
+
+  .login-card {
+    padding: 32px 26px 26px;
+  }
+}
+
+@media (max-width: 420px) {
+  .login-card {
+    padding: 26px 20px 22px;
+    border-radius: 14px;
+  }
+}

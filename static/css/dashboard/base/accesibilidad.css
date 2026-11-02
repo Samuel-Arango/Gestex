@@ -1,0 +1,12 @@
+/* Foco visible para navegar con teclado. */
+
+/* ---------- Accesibilidad: foco visible con teclado ---------- */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(56, 189, 248, 0.6);
+  outline-offset: 2px;
+}

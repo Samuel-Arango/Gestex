@@ -1,0 +1,113 @@
+/* Ajustes adicionales para celular: barras, botones y tablas. */
+
+/* ---------- Diseño adaptable ---------- */
+
+/* Tablas: scroll horizontal dentro de su tarjeta, sin desbordar la página */
+.table-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 980px) {
+  .dash-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Encabezados de página en columna */
+  .page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-head > div:first-child {
+    width: 100%;
+  }
+
+  /* Barra de búsqueda y filtros en una columna */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar select,
+  .toolbar input[type="search"],
+  .toolbar .btn-primary-app,
+  .toolbar .btn-secondary-app,
+  .toolbar .filtro-fecha {
+    width: 100%;
+  }
+
+  .toolbar .filtro-fecha input {
+    width: 100%;
+  }
+
+  /* Botones de acción apilados y del ancho de la pantalla */
+  .form-actions,
+  .exportar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-actions a,
+  .form-actions button,
+  .exportar a {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .paginacion {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  /* Tamaño táctil mínimo recomendado (44px) en botones de acción */
+  .btn-icono {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tab-reporte {
+    padding: 10px 14px;
+  }
+
+  .stat-row {
+    flex-direction: column;
+  }
+
+  .stat-chip {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Contenido con menos margen para aprovechar el ancho del celular */
+  .dash-content {
+    padding: 18px 14px;
+    gap: 20px;
+  }
+
+  .dash-header {
+    padding: 14px;
+  }
+
+  .dash-footer {
+    padding: 14px;
+  }
+
+  .panel {
+    min-height: 0;
+  }
+}
+
+/* Menú lateral deslizable: ocupa todo el alto y se puede cerrar tocando fuera */
+@media (max-width: 980px) {
+  .dash-sidebar {
+    box-shadow: 8px 0 30px rgba(15, 27, 45, 0.35);
+  }
+}

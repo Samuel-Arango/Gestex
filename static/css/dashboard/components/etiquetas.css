@@ -1,0 +1,26 @@
+/* Etiquetas de entrada y salida. */
+
+/* Etiquetas de entrada y salida en el historial */
+.badge-mov {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-mov--entrada { background: #ecfdf3; color: #166534; }
+.badge-mov--salida { background: #fff1f2; color: #9f1239; }
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-chip {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}

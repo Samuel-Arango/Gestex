@@ -1,0 +1,68 @@
+/* Pantalla de inicio: bienvenida y listas del resumen. */
+
+/* ---------- Dashboard de inicio ---------- */
+
+.bienvenida {
+  margin-bottom: 18px;
+}
+
+.bienvenida h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.bienvenida p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.enlace-card {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.enlace-card:hover {
+  text-decoration: underline;
+}
+
+.lista-simple {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lista-simple li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.lista-simple li:last-child {
+  border-bottom: none;
+}
+
+.lista-simple a {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.lista-simple a:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+/* Tarjetas del dashboard: el valor se alinea bien aunque sea grande */
+.card-value {
+  font-variant-numeric: tabular-nums;
+}

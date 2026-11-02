@@ -1,0 +1,43 @@
+/* Formularios, rejilla de dos columnas y botones de acción. */
+
+/* Rejilla de dos columnas en formularios */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 18px;
+}
+
+/* Enlace para volver a la página anterior */
+.enlace-volver {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.enlace-volver:hover {
+  color: var(--brand);
+}
+
+/* Encabezado de sección dentro de una tarjeta */
+.seccion-cabecera {
+  padding: 18px 22px 8px;
+}
+
+.seccion-cabecera p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.seccion-titulo {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.texto-normal {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 14.5px;
+  color: #334155;
+}

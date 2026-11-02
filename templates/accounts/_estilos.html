@@ -1,0 +1,9 @@
+{% load static %}
+{% comment %}
+  Hojas de estilo compartidas por las páginas de acceso (inicio de sesión y registro).
+  El orden importa: si dos reglas coinciden, gana la que se carga después.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'css/accounts/base.css' %}">
+<link rel="stylesheet" href="{% static 'css/accounts/marca.css' %}">
+<link rel="stylesheet" href="{% static 'css/accounts/formulario.css' %}">
+<link rel="stylesheet" href="{% static 'css/accounts/boton.css' %}">

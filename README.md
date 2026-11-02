@@ -256,7 +256,9 @@ Gestex/
 │   ├── views.py               # Vistas del inventario
 │   └── test_*.py              # Pruebas por módulo
 ├── static/
-│   ├── css/                   # dashboard.css, login_accounts.css, pulido.css, ...
+│   ├── css/
+│   │   ├── accounts/          # Estilos de inicio de sesión y registro
+│   │   └── dashboard/         # Panel: base/, layout/, components/, pages/
 │   └── js/                    # Comportamiento de formularios
 ├── templates/
 │   ├── accounts/              # Login, registro y gestión de usuarios
