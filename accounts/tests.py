@@ -1,13 +1,19 @@
+"""
+Pruebas de la cuenta de usuario: modelo, inicio de sesión, registro y
+protección de rutas.
+"""
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import ROL_ADMINISTRADOR, ROL_OPERARIO, Rol, Usuario
 
+# Contraseña de prueba que cumple las validaciones. No se usa fuera de las pruebas.
 PASSWORD = 'Tela-Segura-2026'
 
 
 class UsuarioModelTests(TestCase):
+    """Comprueba el modelo Usuario: hash de contraseña, correo, roles y campos obligatorios."""
 
     def test_roles_base_se_crean_con_la_migracion(self):
         self.assertTrue(Rol.objects.filter(nombre_rol=ROL_ADMINISTRADOR).exists())
@@ -18,6 +24,7 @@ class UsuarioModelTests(TestCase):
         usuario.refresh_from_db()
         self.assertNotEqual(usuario.password, PASSWORD)
         self.assertNotIn(PASSWORD, usuario.password)
+        # Confirma que se usa Argon2, el hasher principal configurado en settings.py.
         self.assertTrue(usuario.password.startswith('argon2'))
         self.assertTrue(usuario.check_password(PASSWORD))
         self.assertFalse(usuario.check_password('otra-clave'))
@@ -52,6 +59,7 @@ class UsuarioModelTests(TestCase):
 
 @override_settings(LOGIN_MAX_INTENTOS=3)
 class InicioSesionTests(TestCase):
+    """Comprueba el inicio de sesión, los intentos fallidos y el bloqueo temporal por fuerza bruta."""
 
     def setUp(self):
         cache.clear()
@@ -80,6 +88,7 @@ class InicioSesionTests(TestCase):
         self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_inyeccion_sql_en_el_correo_no_funciona(self):
+        # Intentos típicos de inyección SQL: no deben iniciar sesión ni romper la vista.
         payloads = ["' OR '1'='1", "admin@taller.co' --", "' OR 1=1 --"]
         for payload in payloads:
             r = self.client.post(self.url, {'username': payload, 'password': 'x'})
@@ -87,6 +96,7 @@ class InicioSesionTests(TestCase):
             self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_bloqueo_tras_varios_intentos_fallidos(self):
+        """Tras el límite de fallos, incluso la contraseña correcta queda bloqueada temporalmente."""
         for _ in range(3):
             self.client.post(self.url, {'username': 'ana@taller.co', 'password': 'mala'})
 
@@ -97,12 +107,15 @@ class InicioSesionTests(TestCase):
         self.assertContains(r, 'Demasiados intentos fallidos')
 
     def test_login_correcto_limpia_el_contador(self):
+        """Un inicio correcto borra los fallos previos, así que no se acumulan para el bloqueo."""
         for _ in range(2):
             self.client.post(self.url, {'username': 'ana@taller.co', 'password': 'mala'})
         r = self.client.post(self.url, {'username': 'ana@taller.co', 'password': PASSWORD})
         self.assertRedirects(r, reverse('dashboard:home'))
 
     def test_redireccion_abierta_bloqueada(self):
+        """Un parámetro 'next' apuntando a otro sitio no debe usarse: siempre va al dashboard."""
+        # Evita que un enlace malicioso redirija al usuario fuera de Gestex tras iniciar sesión.
         r = self.client.post(
             self.url + '?next=https://sitio-malicioso.example',
             {'username': 'ana@taller.co', 'password': PASSWORD},
@@ -111,6 +124,7 @@ class InicioSesionTests(TestCase):
 
 
 class RegistroTests(TestCase):
+    """Comprueba el registro público: datos válidos, correos duplicados y reglas de contraseña."""
 
     def setUp(self):
         cache.clear()
@@ -180,6 +194,7 @@ class RegistroTests(TestCase):
 
 
 class ProteccionDeRutasTests(TestCase):
+    """Comprueba que el panel y el cierre de sesión exigen sesión activa y método correcto."""
 
     def setUp(self):
         cache.clear()
@@ -207,6 +222,7 @@ class ProteccionDeRutasTests(TestCase):
         self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_usuario_inactivo_pierde_acceso_a_sesiones_existentes(self):
+        """Desactivar una cuenta corta el acceso aunque ya tenga una sesión abierta."""
         self.client.force_login(self.usuario)
         self.usuario.estado = False
         self.usuario.save()

@@ -35,6 +35,7 @@ PERMISOS_REPORTE = {
 
 
 def puede_ver_reporte(usuario, tipo):
+    """Indica si el usuario tiene todos los permisos necesarios para ese reporte."""
     return usuario.has_perms(PERMISOS_REPORTE[tipo])
 
 
@@ -44,6 +45,7 @@ def _productos_filtrados(filtros):
 
     texto = filtros.get('q', '').strip()
     if texto:
+        # Se normaliza el término igual que los datos, para que "algodon" encuentre "Algodón".
         termino = normalizar_texto(texto)
         queryset = queryset.annotate(
             nombre_busqueda=campo_normalizado('nombre'),
@@ -58,17 +60,21 @@ def _productos_filtrados(filtros):
 
 
 def _descripcion_tipo(producto):
+    """Nombre legible del tipo de un producto (Insumo o Producto terminado)."""
     return producto.get_tipo_display()
 
 
 def _nombre_tipo(valor):
+    """Nombre legible de un tipo a partir de su valor guardado; si no existe, devuelve el valor."""
     return dict(TipoProducto.choices).get(valor, valor)
 
 
 def _reporte_existencias(filtros):
+    """Saldo actual de cada producto, con alerta de stock bajo solo para productos activos."""
     productos = list(_productos_filtrados(filtros))
     filas = []
     for p in productos:
+        # Un producto inactivo no genera alerta: ya no se va a reponer.
         alerta = p.estado == EstadoProducto.ACTIVO and p.en_alerta
         filas.append({
             'valores': [
@@ -93,9 +99,11 @@ def _reporte_existencias(filtros):
 
 
 def _reporte_movimientos(filtros):
+    """Suma de entradas, salidas y balance por producto, dentro del periodo elegido."""
     productos = list(_productos_filtrados(filtros))
     movimientos = MovimientoInventario.objects.filter(producto__in=productos)
 
+    # Las fechas se comparan por día (fecha__date), no por hora, para que el rango sea inclusivo.
     desde = filtros.get('desde')
     hasta = filtros.get('hasta')
     if desde:
@@ -103,6 +111,7 @@ def _reporte_movimientos(filtros):
     if hasta:
         movimientos = movimientos.filter(fecha__date__lte=hasta)
 
+    # Agrupa en la base de datos: una fila por producto con sus totales.
     agregados = (
         movimientos.values('producto_id', 'producto__nombre', 'producto__unidad_medida', 'producto__tipo')
         .annotate(
@@ -116,6 +125,7 @@ def _reporte_movimientos(filtros):
     filas = []
     total_movimientos = 0
     for fila in agregados:
+        # Sum() devuelve None si no hubo movimientos de ese tipo; se cambia por cero.
         entradas = fila['entradas'] or Decimal('0')
         salidas = fila['salidas'] or Decimal('0')
         balance = entradas - salidas
@@ -157,6 +167,7 @@ def _reporte_movimientos(filtros):
 
 
 def _reporte_catalogo(filtros):
+    """Listado de productos y sus datos maestros, sin cantidades."""
     productos = list(_productos_filtrados(filtros))
     filas = [
         {
@@ -199,6 +210,7 @@ def generar_reporte(tipo, filtros):
 
 def descripcion_filtros(filtros):
     """Texto legible con los filtros aplicados (para el PDF y la pantalla)."""
+    # Cada filtro vacío se omite; si no hay ninguno, se muestra "Sin filtros".
     partes = []
     if filtros.get('q'):
         partes.append(f'Texto: "{filtros["q"]}"')

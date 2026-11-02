@@ -27,5 +27,10 @@ def normalizar_texto(texto):
 
 
 def campo_normalizado(nombre_campo):
-    """Expresión SQL que aplica normalizar_texto a un campo de la base de datos."""
+    """
+    Expresión SQL que aplica normalizar_texto a un campo de la base de datos.
+
+    Func llama a la función registrada en SQLite (ver inventario/apps.py), así la
+    comparación se hace dentro de la base y no hay que traer todos los registros a Python.
+    """
     return Func(F(nombre_campo), function=NOMBRE_FUNCION_SQLITE, output_field=CharField())

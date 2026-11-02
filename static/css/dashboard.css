@@ -1,3 +1,10 @@
+/*
+ * Estilos del panel de administración: variables de color, layout con barra lateral,
+ * tarjetas, tablas, formularios y componentes de inventario, producciones,
+ * reportes e historial.
+ */
+
+/* Variables de color, radio y sombra */
 :root {
   --bg: #0f172a;
   --bg-2: #111827;
@@ -18,6 +25,7 @@
   --shadow: 0 18px 40px rgba(15, 27, 45, 0.12);
 }
 
+/* Base: reset de caja y fondo de página */
 * {
   box-sizing: border-box;
 }
@@ -902,12 +910,14 @@ body.dash-body {
   color: var(--muted);
 }
 
+/* Rejilla de dos columnas en formularios */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 18px;
 }
 
+/* Enlace para volver a la página anterior */
 .enlace-volver {
   font-size: 13px;
   color: var(--muted);
@@ -918,6 +928,7 @@ body.dash-body {
   color: var(--brand);
 }
 
+/* Encabezado de sección dentro de una tarjeta */
 .seccion-cabecera {
   padding: 18px 22px 8px;
 }
@@ -941,6 +952,7 @@ body.dash-body {
   color: #334155;
 }
 
+/* Etiquetas de entrada y salida en el historial */
 .badge-mov {
   display: inline-flex;
   align-items: center;

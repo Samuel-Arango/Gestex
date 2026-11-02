@@ -1,3 +1,9 @@
+"""
+Modelos de cuentas de Gestex: roles (Rol) y usuarios (Usuario).
+
+El usuario inicia sesión con su correo, y su rol determina qué puede hacer
+(ver permisos.py).
+"""
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
@@ -12,7 +18,12 @@ __all__ = ['ROL_ADMINISTRADOR', 'ROL_OPERARIO', 'Rol', 'Usuario']
 
 
 class Rol(models.Model):
-    """Define los permisos de cada usuario (tabla Roles)."""
+    """
+    Rol de un usuario, por ejemplo Administrador u Operario (tabla Roles).
+
+    El rol no guarda la lista de permisos: esa lista está en permisos.py y se
+    consulta según el nombre del rol.
+    """
 
     id_rol = models.AutoField(primary_key=True, db_column='Id_rol')
     nombre_rol = models.CharField(
@@ -30,14 +41,19 @@ class Rol(models.Model):
 
 
 class UsuarioManager(BaseUserManager):
+    """Fabrica de usuarios: create_user para operarios y create_superuser para administradores."""
+
+    # Permite que las migraciones usen este manager.
     use_in_migrations = True
 
     def _crear_usuario(self, correo, nombre, password, id_rol, **extra_fields):
+        """Valida correo y nombre, normaliza el correo y guarda el usuario con la contraseña cifrada."""
         if not correo:
             raise ValueError('El correo es obligatorio.')
         if not nombre:
             raise ValueError('El nombre es obligatorio.')
 
+        # Así 'Ana@Taller.co' y 'ana@taller.co' son la misma cuenta.
         correo = self.normalize_email(correo).strip().lower()
         if id_rol is None:
             # Por defecto, cualquier usuario nuevo es Operario.
@@ -52,10 +68,12 @@ class UsuarioManager(BaseUserManager):
         return usuario
 
     def create_user(self, correo, nombre, password=None, id_rol=None, **extra_fields):
+        """Crea un usuario activo. Si no se indica rol, queda como Operario."""
         extra_fields.setdefault('estado', True)
         return self._crear_usuario(correo, nombre, password, id_rol, **extra_fields)
 
     def create_superuser(self, correo, nombre, password=None, **extra_fields):
+        """Crea un usuario con rol Administrador (acceso total). Lo usa el comando createsuperuser."""
         rol, _ = Rol.objects.get_or_create(
             nombre_rol=ROL_ADMINISTRADOR,
             defaults={'descripcion': 'Control total del sistema.'},
@@ -65,7 +83,12 @@ class UsuarioManager(BaseUserManager):
 
 
 class Usuario(AbstractBaseUser):
-    """Usuarios que ingresan al sistema (tabla Usuarios)."""
+    """
+    Persona que ingresa al sistema (tabla Usuarios).
+
+    Hereda de AbstractBaseUser, la clase base de autenticación de Django.
+    Inicia sesión con el correo, no con un nombre de usuario.
+    """
 
     id_usuario = models.AutoField(primary_key=True, db_column='Id_usuario')
     nombre = models.CharField(max_length=100, db_column='nombre')
@@ -84,8 +107,10 @@ class Usuario(AbstractBaseUser):
 
     objects = UsuarioManager()
 
+    # Django usa el correo como identificador para iniciar sesión.
     USERNAME_FIELD = 'correo'
     EMAIL_FIELD = 'correo'
+    # Campos que 'createsuperuser' pide además del correo y la contraseña.
     REQUIRED_FIELDS = ['nombre']
 
     class Meta:
@@ -94,6 +119,7 @@ class Usuario(AbstractBaseUser):
         verbose_name_plural = 'usuarios'
 
     def save(self, *args, **kwargs):
+        """Normaliza el correo y guarda el usuario en la base de datos."""
         # El correo se guarda siempre en minúsculas para que la unicidad no dependa de mayúsculas.
         if self.correo:
             self.correo = self.correo.strip().lower()
@@ -106,19 +132,23 @@ class Usuario(AbstractBaseUser):
 
     @property
     def is_active(self):
+        """Django usa este valor para permitir o negar el inicio de sesión. Aquí es el campo estado."""
         return self.estado
 
     @property
     def es_administrador(self):
+        """True si el rol del usuario es Administrador."""
         return self.id_rol.nombre_rol == ROL_ADMINISTRADOR
 
     # El acceso al panel de Django (/admin/) solo lo tienen los administradores.
     @property
     def is_staff(self):
+        """Indica si puede entrar al panel de Django. Solo para administradores."""
         return self.es_administrador
 
     @property
     def is_superuser(self):
+        """Indicador de superusuario de Django. Aquí equivale a ser administrador."""
         return self.es_administrador
 
     def has_perm(self, perm, obj=None):
@@ -126,14 +156,18 @@ class Usuario(AbstractBaseUser):
         return tiene_permiso_por_rol(self.id_rol.nombre_rol, perm, self.is_active)
 
     def has_perms(self, perm_list, obj=None):
+        """Devuelve True solo si el usuario tiene todos los permisos de la lista."""
         # Django lo usa en PermissionRequiredMixin: el usuario debe tener todos los permisos.
         return all(self.has_perm(perm, obj) for perm in perm_list)
 
     def has_module_perms(self, app_label):
+        """Indica si el usuario tiene algún permiso sobre la app indicada (por ejemplo 'inventario')."""
         return tiene_permisos_de_app(self.id_rol.nombre_rol, app_label, self.is_active)
 
     def get_full_name(self):
+        """Nombre completo tal como se registró."""
         return self.nombre
 
     def get_short_name(self):
+        """Primer nombre, para saludos. Si no hay nombre, usa el correo."""
         return self.nombre.split(' ')[0] if self.nombre else self.correo

@@ -1,4 +1,4 @@
-"""Pruebas del CRUD de productos (Fase 3): permisos, búsqueda, validaciones y estados."""
+"""Pruebas del CRUD de productos: listado, búsqueda y filtros, alta, edición, activación/desactivación, ficha y permisos."""
 from datetime import date
 from decimal import Decimal
 
@@ -45,6 +45,7 @@ def datos_formulario(**cambios):
 
 
 class BaseProductoTests(TestCase):
+    """Crea un operario con sesión iniciada y un administrador, para probar los permisos sobre productos."""
 
     def setUp(self):
         self.operario = crear_usuario('operario@taller.co', 'Operario', ROL_OPERARIO)
@@ -53,6 +54,7 @@ class BaseProductoTests(TestCase):
 
 
 class ListadoYBusquedaTests(BaseProductoTests):
+    """Listado de productos: acceso, búsqueda sin distinguir mayúsculas ni tildes, filtros por tipo y estado, paginación y alerta de stock bajo."""
 
     def test_visitante_anonimo_es_redirigido_al_login(self):
         self.client.logout()
@@ -127,6 +129,7 @@ class ListadoYBusquedaTests(BaseProductoTests):
         self.assertContains(r, 'Tela algodón')
 
     def test_listado_se_pagina_y_conserva_la_busqueda(self):
+        # 16 coincidencias con 15 por página: la última queda en la página 2.
         for i in range(16):
             crear_producto(f'Tela {i:02d}')
         r = self.client.get(reverse('inventario:lista'), {'q': 'Tela'})
@@ -136,6 +139,7 @@ class ListadoYBusquedaTests(BaseProductoTests):
     def test_alerta_cuenta_solo_productos_activos_con_stock_bajo(self):
         bajo = crear_producto('Hilo bajo', stock_minimo=Decimal('5'))
         sano = crear_producto('Hilo sano', stock_minimo=Decimal('5'))
+        # El inactivo también está bajo de stock, pero no debe contarse en la alerta.
         crear_producto('Hilo inactivo bajo', stock_minimo=Decimal('5'), estado='inactivo')
         Producto.objects.filter(pk=bajo.pk).update(cantidad_actual=Decimal('2'))
         Producto.objects.filter(pk=sano.pk).update(cantidad_actual=Decimal('50'))
@@ -144,6 +148,7 @@ class ListadoYBusquedaTests(BaseProductoTests):
         self.assertEqual(r.context['total_en_alerta'], 1)
 
     def test_datos_de_producto_se_escapan_en_el_html(self):
+        # El nombre debe mostrarse como texto; el navegador no debe ejecutarlo.
         crear_producto('<script>alert(1)</script>')
         r = self.client.get(reverse('inventario:lista'))
         self.assertNotContains(r, '<script>alert(1)</script>')
@@ -151,6 +156,7 @@ class ListadoYBusquedaTests(BaseProductoTests):
 
 
 class CrearProductoTests(BaseProductoTests):
+    """Alta de productos: validaciones de nombre (único y con mínimo de caracteres), stock mínimo no negativo, campos obligatorios y tipo válido. Las existencias nunca se capturan al crear."""
 
     def test_formulario_de_alta_carga(self):
         r = self.client.get(reverse('inventario:crear'))
@@ -194,6 +200,7 @@ class CrearProductoTests(BaseProductoTests):
 
 
 class EditarProductoTests(BaseProductoTests):
+    """Edición de productos: cambios de datos, existencias protegidas, nombre único, insumos usados en producciones y ausencia de borrado físico."""
 
     def setUp(self):
         super().setUp()
@@ -244,12 +251,14 @@ class EditarProductoTests(BaseProductoTests):
         self.assertContains(r, 'no puede convertirse en producto terminado')
 
     def test_no_existe_ruta_para_borrar_productos(self):
+        # Los productos no se borran; la ruta de borrado no existe y responde 404.
         r = self.client.post(f'/inventario/{self.producto.pk}/borrar/')
         self.assertEqual(r.status_code, 404)
         self.assertTrue(Producto.objects.filter(pk=self.producto.pk).exists())
 
 
 class DesactivarProductoTests(BaseProductoTests):
+    """Activar y desactivar productos mediante POST. El registro nunca se borra, y las peticiones anónimas o GET no cambian nada."""
 
     def setUp(self):
         super().setUp()
@@ -279,6 +288,7 @@ class DesactivarProductoTests(BaseProductoTests):
 
 
 class DetalleProductoTests(BaseProductoTests):
+    """Ficha del producto: muestra sus datos y sus últimos movimientos, con estado vacío si no tiene historial, y responde 404 si el producto no existe."""
 
     def test_ficha_muestra_datos_y_ultimos_movimientos(self):
         producto = crear_producto('Botones nácar')
@@ -302,6 +312,7 @@ class DetalleProductoTests(BaseProductoTests):
 
 
 class AdministradorTests(BaseProductoTests):
+    """El rol administrador tiene los mismos permisos de gestión de productos que el operario."""
 
     def test_administrador_tambien_puede_gestionar_productos(self):
         self.client.force_login(self.admin)

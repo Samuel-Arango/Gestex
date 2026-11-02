@@ -30,6 +30,7 @@ SEPARADOR_CSV = ';'
 
 
 def _es_numero(texto):
+    """True si el texto se puede leer como número (por ejemplo '-3.00')."""
     try:
         Decimal(texto)
         return True
@@ -51,6 +52,7 @@ def celda_segura(valor):
 
 
 def respuesta_csv(reporte, nombre_archivo):
+    """Respuesta HTTP que descarga el reporte como archivo CSV."""
     respuesta = HttpResponse(content_type='text/csv; charset=utf-8')
     respuesta['Content-Disposition'] = f'attachment; filename="{nombre_archivo}.csv"'
 
@@ -64,7 +66,11 @@ def respuesta_csv(reporte, nombre_archivo):
 
 
 def generar_pdf(reporte, descripcion_filtros, generado_en):
-    """Devuelve el PDF del reporte como bytes."""
+    """
+    Devuelve el PDF del reporte como bytes.
+
+    Se usa una hoja horizontal (landscape) porque los reportes tienen muchas columnas.
+    """
     buffer = BytesIO()
     documento = SimpleDocTemplate(
         buffer,
@@ -126,6 +132,8 @@ def generar_pdf(reporte, descripcion_filtros, generado_en):
     elementos.extend([Spacer(1, 10), Paragraph(escape(reporte['nota']), estilo_texto)])
 
     def pie_de_pagina(canvas, doc):
+        """Dibuja en cada página la fecha de generación y el número de página."""
+        # saveState/restoreState aíslan el tipo de letra y color del pie del resto del documento.
         canvas.saveState()
         canvas.setFont('Helvetica', 8)
         canvas.setFillColor(colors.HexColor('#64748b'))

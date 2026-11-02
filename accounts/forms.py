@@ -1,3 +1,4 @@
+"""Formularios de la app accounts: edición de usuarios, inicio de sesión y registro."""
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
@@ -22,12 +23,19 @@ class UsuarioEditarForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """Recibe el administrador que edita ('solicitante') y ordena los roles por nombre."""
         # El administrador que edita; se usa para evitar que se bloquee a sí mismo.
         self.solicitante = kwargs.pop('solicitante')
         super().__init__(*args, **kwargs)
         self.fields['id_rol'].queryset = Rol.objects.order_by('nombre_rol')
 
     def clean(self):
+        """
+        Valida el cambio de rol y estado antes de guardar.
+
+        Reglas: nadie puede desactivarse ni quitarse el rol de administrador a sí
+        mismo, y el sistema siempre debe tener al menos un administrador activo.
+        """
         cleaned = super().clean()
         # En clean() la instancia aún tiene los valores guardados en la base de datos.
         if self.instance.pk is None:
@@ -39,6 +47,7 @@ class UsuarioEditarForm(forms.ModelForm):
             nuevo_rol and nuevo_rol.nombre_rol == ROL_ADMINISTRADOR and nuevo_estado
         )
 
+        # Reglas para el propio administrador: no puede bloquearse ni quitarse el rol.
         if self.instance.pk == self.solicitante.pk:
             if not nuevo_estado:
                 self.add_error('estado', 'No puedes desactivar tu propia cuenta.')
@@ -61,6 +70,7 @@ class UsuarioEditarForm(forms.ModelForm):
 class LoginForm(AuthenticationForm):
     """Inicio de sesión con correo y contraseña."""
 
+    # El campo 'username' de Django se usa aquí para el correo.
     username = forms.EmailField(
         label='Correo electrónico',
         max_length=100,
@@ -79,12 +89,14 @@ class LoginForm(AuthenticationForm):
         }),
     )
 
+    # Mensajes que muestra AuthenticationForm; están en español.
     error_messages = {
         'invalid_login': 'Correo o contraseña incorrectos.',
         'inactive': 'Esta cuenta está desactivada. Contacta al administrador.',
     }
 
     def clean_username(self):
+        """Quita espacios y pasa a minúsculas el correo, para que coincida con el guardado."""
         return self.cleaned_data['username'].strip().lower()
 
 
@@ -125,18 +137,22 @@ class RegistroForm(forms.Form):
     )
 
     def clean_nombre(self):
+        """Quita espacios sobrantes y exige al menos 3 caracteres."""
         nombre = ' '.join(self.cleaned_data['nombre'].split())  # Quita espacios sobrantes.
         if len(nombre) < 3:
             raise ValidationError('El nombre debe tener al menos 3 caracteres.')
         return nombre
 
     def clean_correo(self):
+        """Normaliza el correo y rechaza uno que ya esté registrado."""
         correo = self.cleaned_data['correo'].strip().lower()
+        # Mensaje genérico: no confirma si el correo existe (evita descubrir cuentas).
         if Usuario.objects.filter(correo=correo).exists():
             raise ValidationError('No se pudo completar el registro con este correo.')
         return correo
 
     def clean(self):
+        """Verifica que las dos contraseñas coincidan y cumplan las validaciones de Django."""
         cleaned = super().clean()
         password1 = cleaned.get('password1')
         password2 = cleaned.get('password2')
@@ -145,6 +161,7 @@ class RegistroForm(forms.Form):
             self.add_error('password2', 'Las contraseñas no coinciden.')
 
         if password1:
+            # Objeto temporal para que el validador compare la contraseña con nombre y correo.
             candidato = Usuario(
                 nombre=cleaned.get('nombre', ''),
                 correo=cleaned.get('correo', ''),

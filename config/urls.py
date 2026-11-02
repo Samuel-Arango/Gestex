@@ -1,4 +1,6 @@
 """
+Rutas principales de Gestex. Cada app tiene su propio archivo urls.py.
+
 URL configuration for config project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -18,11 +20,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
 
+# Textos personalizados del panel de administración de Django.
 admin.site.site_header = "Gestex | Inventario - Taller de Confección Textil"
 admin.site.site_title = "Gestex"
 admin.site.index_title = "Panel del Taller de Confección"
 
+# Cada app se monta bajo su propio prefijo (por ejemplo /cuenta/ para accounts).
 urlpatterns = [
+    # La raíz del sitio redirige al inicio de sesión.
     path('', RedirectView.as_view(pattern_name='accounts:login', permanent=False), name='inicio'),
     path('cuenta/', include('accounts.urls')),
     path('dashboard/', include('dashboard.urls')),

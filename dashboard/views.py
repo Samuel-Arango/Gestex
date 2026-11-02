@@ -28,6 +28,7 @@ def dashboard_home(request):
             tipo=TipoProducto.PRODUCTO_TERMINADO, estado=EstadoProducto.ACTIVO,
         )
         contexto.update({
+            # Sin productos terminados la suma es None; se muestra 0.
             'total_unidades_terminadas': terminados.aggregate(total=Sum('cantidad_actual'))['total'] or 0,
             'productos_terminados_stock': terminados.filter(cantidad_actual__gt=0).order_by('-cantidad_actual')[:6],
             'ultimas_terminadas': (
@@ -37,6 +38,7 @@ def dashboard_home(request):
             ),
         })
 
+        # Los productos inactivos no cuentan en indicadores ni en alertas.
         activos = Producto.objects.filter(estado=EstadoProducto.ACTIVO)
         resumen = activos.aggregate(
             insumos=Count('id', filter=Q(tipo=TipoProducto.INSUMO)),
@@ -47,7 +49,7 @@ def dashboard_home(request):
             'total_insumos': resumen['insumos'],
             'total_terminados': resumen['terminados'],
             'total_en_alerta': resumen['en_alerta'],
-            # Los 5 productos activos con menos existencias en relación a su mínimo.
+            # Hasta 5 productos activos en alerta, ordenados de menos a más existencias.
             'productos_alerta': (
                 activos.filter(cantidad_actual__lte=F('stock_minimo'))
                 .order_by('cantidad_actual')[:5]

@@ -1,7 +1,8 @@
 """
-Flujo completo de producción (Fase 9):
-producción -> producto terminado -> ingreso automático al inventario -> dashboard,
-y registro de consumo de materiales en una sola operación.
+Flujo completo de producción: al terminar una producción se ingresa
+automáticamente el producto terminado al inventario (una sola vez) y el
+dashboard lo refleja. También se prueba el registro de consumo de materiales
+en una sola operación.
 """
 from datetime import date
 from decimal import Decimal
@@ -73,6 +74,7 @@ def stock(producto):
 
 
 class ProductoTerminadoAutomaticoTests(TestCase):
+    """obtener_o_crear_producto_terminado y ProduccionForm: el producto terminado se crea o reutiliza por nombre sin distinguir mayúsculas, nunca convierte un insumo y se asocia al guardar la producción."""
 
     def setUp(self):
         self.usuario = crear_usuario()
@@ -111,6 +113,7 @@ class ProductoTerminadoAutomaticoTests(TestCase):
 
 
 class IngresoAlTerminarTests(TestCase):
+    """Ingreso de unidades al terminar una producción: ocurre una sola vez, solo si la producción tiene producto terminado, y una producción ingresada queda bloqueada en estado y producto."""
 
     def setUp(self):
         self.usuario = crear_usuario()
@@ -161,6 +164,7 @@ class IngresoAlTerminarTests(TestCase):
         )
 
     def test_guardar_en_terminada_desde_el_formulario_ingresa_el_stock(self):
+        # Guardar el formulario en estado terminada también genera el ingreso al inventario.
         self.client.force_login(self.usuario)
         produccion = crear_produccion(self.usuario, self.camisa, cantidad=8)
         datos = datos_form(estado=EstadoProduccion.TERMINADA, cantidad_solicitada='8')
@@ -173,6 +177,7 @@ class IngresoAlTerminarTests(TestCase):
         self.assertEqual(stock(self.camisa), Decimal('8'))
 
     def test_una_produccion_ingresada_no_puede_volver_a_otro_estado(self):
+        # Una vez ingresada al inventario, la producción no puede regresar a otro estado.
         produccion = crear_produccion(self.usuario, self.camisa, ingreso_registrado=True,
                                       estado=EstadoProduccion.TERMINADA)
         form = ProduccionForm(datos_form(estado=EstadoProduccion.EN_PROCESO), instance=produccion)
@@ -199,6 +204,7 @@ class IngresoAlTerminarTests(TestCase):
 
 
 class ConsumoEnLoteTests(TestCase):
+    """Registro de consumo de materiales en una sola operación: una cantidad por material, casillas vacías ignoradas, error si no hay cantidades, reversión completa si un material no alcanza y bloqueo en producciones terminadas."""
 
     def setUp(self):
         self.usuario = crear_usuario()
@@ -263,6 +269,7 @@ class ConsumoEnLoteTests(TestCase):
         self.assertEqual(self.det_tela.cantidad_utilizada, Decimal('0'))
 
     def test_no_se_puede_consumir_en_una_produccion_terminada(self):
+        # La pantalla redirige al detalle, y el servicio rechaza el consumo aunque se llame directamente.
         Produccion.objects.filter(pk=self.produccion.pk).update(estado=EstadoProduccion.TERMINADA)
         r = self.client.get(self.url)
         self.assertRedirects(r, reverse('inventario:produccion_detalle', args=[self.produccion.pk]))
@@ -294,6 +301,7 @@ class ConsumoEnLoteTests(TestCase):
 
 
 class DashboardProduccionTests(TestCase):
+    """El dashboard muestra el producto terminado generado por las producciones y suma las unidades de todas las producciones ingresadas."""
 
     def setUp(self):
         self.usuario = crear_usuario()

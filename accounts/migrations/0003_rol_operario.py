@@ -1,5 +1,5 @@
 """
-Renombra el rol 'Usuario' a 'Operario' (requisito de la Fase 2).
+Renombra el rol 'Usuario' a 'Operario' como parte del cambio de roles del sistema.
 
 Si el rol 'Operario' ya existe, los usuarios de 'Usuario' se pasan a él
 y el rol antiguo se elimina. Así la migración no falla en ningún caso.

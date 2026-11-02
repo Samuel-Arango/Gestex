@@ -10,9 +10,11 @@ nuevo queda bloqueado para el Operario hasta que se agregue a esta lista.
 Los nombres siguen el formato de Django: 'app.accion_modelo'.
 """
 
+# Nombres de los roles. Deben coincidir con los guardados en la tabla Roles.
 ROL_ADMINISTRADOR = 'Administrador'
 ROL_OPERARIO = 'Operario'
 
+# Lista explícita de permisos del Operario. Cualquier permiso que no esté aquí queda denegado.
 PERMISOS_OPERARIO = frozenset({
     # Productos (insumos y terminados): registrar, consultar y modificar. No borrar.
     'inventario.view_producto',
@@ -33,12 +35,14 @@ PERMISOS_OPERARIO = frozenset({
 
 def tiene_permiso_por_rol(nombre_rol, permiso, esta_activo=True):
     """Decide si un rol concede un permiso ('app.accion_modelo')."""
+    # Una cuenta desactivada no tiene permisos, aunque su rol sea Administrador.
     if not esta_activo:
         return False
     if nombre_rol == ROL_ADMINISTRADOR:
         return True
     if nombre_rol == ROL_OPERARIO:
         return permiso in PERMISOS_OPERARIO
+    # Rol desconocido: se deniega por defecto (principio de mínimo privilegio).
     return False
 
 
@@ -49,5 +53,7 @@ def tiene_permisos_de_app(nombre_rol, app_label, esta_activo=True):
     if nombre_rol == ROL_ADMINISTRADOR:
         return True
     if nombre_rol == ROL_OPERARIO:
+        # El operario ve la app si tiene al menos un permiso sobre sus modelos.
         return any(p.startswith(f'{app_label}.') for p in PERMISOS_OPERARIO)
+    # Rol desconocido: sin acceso.
     return False

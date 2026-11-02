@@ -1,4 +1,4 @@
-"""Pruebas de producciones y lista de materiales (Fase 7)."""
+"""Pruebas de producciones y lista de materiales: formularios, formset de materiales, alta y edición, lista y ficha con progreso."""
 from datetime import date
 from decimal import Decimal
 
@@ -78,6 +78,7 @@ def datos_formset(filas, prefijo='detalles', iniciales=0):
 
 
 class ReglasDelFormularioTests(TestCase):
+    """Reglas de ProduccionForm y DetalleMaterialForm: fechas coherentes, estado controlado por el flujo y solo insumos activos como materiales."""
 
     def setUp(self):
         self.operario = crear_usuario('op@taller.co', 'Operario')
@@ -124,6 +125,7 @@ class ReglasDelFormularioTests(TestCase):
 
 
 class FormsetTests(TestCase):
+    """Formset de materiales: sin insumos repetidos, filas vacías ignoradas, cantidad requerida que no baja de lo ya consumido y materiales con consumo que no se pueden quitar."""
 
     def setUp(self):
         self.operario = crear_usuario('op@taller.co', 'Operario')
@@ -183,6 +185,7 @@ class FormsetTests(TestCase):
 
 
 class ProduccionesVistasTests(TestCase):
+    """Alta y edición de producciones por la vista: permisos, guardado con materiales, rollback si un material falla, productos terminados rechazados como material y restricciones al editar."""
 
     def setUp(self):
         self.operario = crear_usuario('op@taller.co', 'Operario')
@@ -253,6 +256,7 @@ class ProduccionesVistasTests(TestCase):
         self.assertEqual(produccion.detalles.count(), 2)
 
     def test_quitar_material_con_consumo_muestra_error_al_editar(self):
+        # El material ya tiene un consumo registrado: no se puede quitar y la edición se devuelve con error.
         produccion = crear_produccion(self.operario)
         detalle = DetalleMaterial.objects.create(
             produccion=produccion, producto=self.tela, cantidad_requerida=Decimal('10'),
@@ -270,6 +274,7 @@ class ProduccionesVistasTests(TestCase):
         self.assertTrue(DetalleMaterial.objects.filter(pk=detalle.pk).exists())
 
     def test_no_existe_ruta_para_borrar_producciones(self):
+        # Las producciones tampoco se borran: la ruta de borrado responde 404.
         produccion = crear_produccion(self.operario)
         r = self.client.post(f'/inventario/producciones/{produccion.pk}/borrar/')
         self.assertEqual(r.status_code, 404)
@@ -288,6 +293,7 @@ class ProduccionesVistasTests(TestCase):
 
 
 class ListaYFichaTests(TestCase):
+    """Lista de producciones (filtros y búsqueda) y ficha con progreso de materiales, movimientos ligados y enlace para registrar consumo."""
 
     def setUp(self):
         self.operario = crear_usuario('op@taller.co', 'Operario')
@@ -318,6 +324,7 @@ class ListaYFichaTests(TestCase):
         self.assertContains(r, 'No hay producciones con estos filtros')
 
     def test_ficha_calcula_progreso_y_marca_exceso(self):
+        # 4 de 10 consumidos: 40 % de progreso y 6 pendientes, sin exceso.
         DetalleMaterial.objects.create(
             produccion=self.pendiente, producto=self.tela, cantidad_requerida=Decimal('10'),
         )
@@ -332,6 +339,7 @@ class ListaYFichaTests(TestCase):
         self.assertFalse(material['excedido'])
 
     def test_progreso_no_pasa_de_cien_pero_marca_exceso(self):
+        # 8 consumidos de 5 requeridos: el progreso se limita a 100 %, pero el exceso se marca.
         detalle = DetalleMaterial.objects.create(
             produccion=self.pendiente, producto=self.tela, cantidad_requerida=Decimal('5'),
         )

@@ -1,5 +1,6 @@
 /* Estilos adicionales para la página de registro (complementa login_accounts.css) */
 
+/* Tarjeta de registro y rejilla de dos columnas */
 .register-card {
   max-width: 540px;
 }
@@ -10,6 +11,7 @@
   gap: 0 16px;
 }
 
+/* Textos de ayuda y error por campo */
 .field__hint {
   margin: 6px 0 0;
   font-size: 12px;
@@ -102,6 +104,7 @@
   color: #8a97ab;
 }
 
+/* Enlace dentro del texto inferior */
 .login-switch a {
   color: var(--brand);
   font-weight: 600;

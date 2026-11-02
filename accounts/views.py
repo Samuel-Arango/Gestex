@@ -1,3 +1,4 @@
+"""Vistas de cuentas: gestión de usuarios (solo administrador), inicio de sesión y registro."""
 import hashlib
 
 from django.conf import settings
@@ -23,6 +24,8 @@ class SoloAdministradorMixin(LoginRequiredMixin, UserPassesTestMixin):
     """
 
     def test_func(self):
+        """Devuelve True solo si la cuenta está activa y tiene rol de administrador."""
+        # Se revisa en cada petición, así una cuenta desactivada pierde el acceso al instante.
         usuario = self.request.user
         return usuario.is_active and usuario.es_administrador
 
@@ -48,31 +51,38 @@ class UsuarioEditarView(SoloAdministradorMixin, UpdateView):
     success_url = reverse_lazy('accounts:usuarios')
 
     def get_form_kwargs(self):
+        """Pasa al formulario el usuario que edita, para aplicar las reglas de auto-protección."""
         kwargs = super().get_form_kwargs()
         kwargs['solicitante'] = self.request.user
         return kwargs
 
     def form_valid(self, form):
+        """Guarda los cambios y muestra un mensaje de confirmación."""
         messages.success(self.request, f'Datos de {form.instance.nombre} actualizados.')
         return super().form_valid(form)
 
 
 def _clave_intentos(request, correo):
     """Clave de caché por combinación IP + correo (no guarda el correo en claro)."""
+    # El bloqueo es por IP y correo: los fallos desde una IP no bloquean otras IPs.
     ip = request.META.get('REMOTE_ADDR', '')
     origen = f'{ip}|{correo}'.encode('utf-8')
     return 'login_fallidos:' + hashlib.sha256(origen).hexdigest()
 
 
 class InicioSesionView(LoginView):
+    """Inicio de sesión que cuenta los intentos fallidos y bloquea temporalmente al exceder el límite."""
+
     template_name = 'accounts/login.html'
     authentication_form = LoginForm
     redirect_authenticated_user = True
 
     def post(self, request, *args, **kwargs):
+        """Revisa el bloqueo antes de validar la contraseña."""
         correo = request.POST.get('username', '').strip().lower()
         clave = _clave_intentos(request, correo)
 
+        # Si ya superó el límite, no se valida la contraseña: se muestra el bloqueo.
         if cache.get(clave, 0) >= settings.LOGIN_MAX_INTENTOS:
             form = self.get_form()
             form.add_error(
@@ -84,11 +94,13 @@ class InicioSesionView(LoginView):
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
+        """Inicio correcto: borra el contador de fallos de ese correo."""
         correo = form.cleaned_data['username']
         cache.delete(_clave_intentos(self.request, correo))
         return super().form_valid(form)
 
     def form_invalid(self, form):
+        """Registra un intento fallido y luego muestra el error del formulario."""
         correo = form.data.get('username', '').strip().lower()
         clave = _clave_intentos(self.request, correo)
         # cache.add crea el contador con vencimiento; incr lo aumenta sin reiniciar el plazo.
@@ -96,11 +108,14 @@ class InicioSesionView(LoginView):
         try:
             cache.incr(clave)
         except ValueError:
+            # El contador expiró entre add e incr: se crea de nuevo con el primer fallo.
             cache.set(clave, 1, timeout=settings.LOGIN_BLOQUEO_SEGUNDOS)
         return super().form_invalid(form)
 
 
 def registro(request):
+    """Registro público. Los usuarios nuevos quedan con rol Operario."""
+    # Quien ya inició sesión no necesita registrarse de nuevo.
     if request.user.is_authenticated:
         return redirect(settings.LOGIN_REDIRECT_URL)
 
@@ -108,6 +123,7 @@ def registro(request):
         form = RegistroForm(request.POST)
         if form.is_valid():
             try:
+                # La transacción evita dejar datos a medias si el guardado falla.
                 with transaction.atomic():
                     Usuario.objects.create_user(
                         correo=form.cleaned_data['correo'],

@@ -1,22 +1,31 @@
-"""Pruebas de roles, permisos y protección de vistas (Fase 2)."""
+"""
+Pruebas de roles, permisos y protección de vistas.
+
+Comprueban qué puede hacer cada rol, que las vistas protegidas rechacen a
+quien no corresponde y que las reglas de gestión de usuarios se cumplan.
+"""
 from django.test import TestCase
 from django.urls import reverse
 
 from .forms import UsuarioEditarForm
 from .models import ROL_ADMINISTRADOR, ROL_OPERARIO, Rol, Usuario
 
+# Contraseña de prueba que cumple las validaciones. No se usa fuera de las pruebas.
 PASSWORD = 'Clave-Segura-2026'
 
 
 def rol(nombre):
+    """Devuelve el objeto Rol con ese nombre (los roles se crean en la migración)."""
     return Rol.objects.get(nombre_rol=nombre)
 
 
 def crear(correo, nombre, nombre_rol):
+    """Crea un usuario activo con el rol indicado y la contraseña de prueba."""
     return Usuario.objects.create_user(correo, nombre, PASSWORD, id_rol=rol(nombre_rol))
 
 
 class PermisosPorRolTests(TestCase):
+    """Comprueba los permisos de Administrador y Operario según permisos.py."""
 
     def setUp(self):
         self.admin = crear('admin@taller.co', 'Admin', ROL_ADMINISTRADOR)
@@ -56,6 +65,7 @@ class PermisosPorRolTests(TestCase):
         self.assertTrue(self.admin.has_module_perms('accounts'))
 
     def test_usuario_inactivo_no_tiene_permisos(self):
+        """Una cuenta desactivada no tiene permisos, aunque su rol sea Administrador."""
         self.admin.estado = False
         self.admin.save()
         self.assertFalse(self.admin.has_perm('inventario.view_producto'))
@@ -63,6 +73,7 @@ class PermisosPorRolTests(TestCase):
 
 
 class ProteccionDeVistasTests(TestCase):
+    """Comprueba que solo los administradores acceden a la gestión de usuarios y al panel de Django."""
 
     def setUp(self):
         self.admin = crear('admin@taller.co', 'Admin', ROL_ADMINISTRADOR)
@@ -82,6 +93,7 @@ class ProteccionDeVistasTests(TestCase):
         self.assertEqual(self.client.get(self.url_editar).status_code, 403)
 
     def test_operario_no_puede_cambiar_roles_por_post(self):
+        """Aunque el operario envíe datos a mano (POST), no puede cambiar a otro usuario."""
         self.client.force_login(self.operario)
         r = self.client.post(self.url_editar, {'nombre': 'Hackeado', 'id_rol': rol(ROL_ADMINISTRADOR).pk, 'estado': True})
         self.assertEqual(r.status_code, 403)
@@ -103,6 +115,7 @@ class ProteccionDeVistasTests(TestCase):
 
 
 class GestionDeUsuariosTests(TestCase):
+    """Comprueba que el administrador puede editar usuarios y que las reglas de seguridad se cumplen."""
 
     def setUp(self):
         self.admin = crear('admin@taller.co', 'Admin', ROL_ADMINISTRADOR)
@@ -110,6 +123,7 @@ class GestionDeUsuariosTests(TestCase):
         self.client.force_login(self.admin)
 
     def _editar(self, pk, **datos):
+        """Envía el formulario de edición del usuario 'pk' con los datos indicados."""
         return self.client.post(reverse('accounts:usuario_editar', args=[pk]), datos)
 
     def test_administrador_puede_cambiar_rol_y_estado(self):
@@ -152,12 +166,14 @@ class GestionDeUsuariosTests(TestCase):
         self.assertIn('al menos un administrador activo', str(form.non_field_errors()))
 
     def test_formulario_nunca_incluye_la_contrasena(self):
+        """El formulario de edición solo tiene nombre, rol y estado; la contraseña no se edita aquí."""
         form = UsuarioEditarForm(instance=self.otro, solicitante=self.admin)
         self.assertNotIn('password', form.fields)
         self.assertEqual(set(form.fields), {'nombre', 'id_rol', 'estado'})
 
 
 class NavegacionPorRolTests(TestCase):
+    """Comprueba qué opciones del menú de inicio ve cada rol y que el registro asigna Operario."""
 
     def setUp(self):
         self.admin = crear('admin@taller.co', 'Admin', ROL_ADMINISTRADOR)

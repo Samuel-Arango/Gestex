@@ -1,3 +1,3 @@
 from django.contrib import admin
 
-# Register your models here.
+# Esta app no registra modelos en el admin: sus datos se administran desde inventario.

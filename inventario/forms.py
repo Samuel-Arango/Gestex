@@ -71,9 +71,15 @@ class ProduccionForm(forms.ModelForm):
             self.initial['producto_nombre'] = self.instance.producto_terminado.nombre
 
     def clean_descripcion(self):
+        """Quita espacios sobrantes y saltos de línea para guardar un texto uniforme."""
         return ' '.join(self.cleaned_data['descripcion'].split())
 
     def clean_producto_nombre(self):
+        """Normaliza el nombre y evita que el producto terminado tenga el mismo nombre que un insumo.
+
+        Un insumo y un producto terminado con el mismo nombre se confundirían en las listas
+        de materiales y en los movimientos, por eso se rechaza.
+        """
         nombre = ' '.join(self.cleaned_data.get('producto_nombre', '').split())
         if nombre and buscar_producto_por_nombre(nombre, tipo=TipoProducto.INSUMO):
             raise ValidationError(
@@ -82,12 +88,14 @@ class ProduccionForm(forms.ModelForm):
         return nombre
 
     def clean(self):
+        """Valida reglas que cruzan varios campos: estado, producto y el ingreso al inventario."""
         cleaned = super().clean()
         nombre = cleaned.get('producto_nombre', '')
         estado = cleaned.get('estado', self.instance.estado)
 
         if self.instance.pk and self.instance.ingreso_registrado:
-            # Las unidades ya están en el inventario: no se puede deshacer ni cambiar el producto.
+            # Las unidades ya están en el inventario: no se puede deshacer ni cambiar el producto,
+            # porque el inventario quedaría desfasado respecto a lo que realmente se produjo.
             if estado != EstadoProduccion.TERMINADA:
                 self.add_error(
                     'estado',
@@ -100,6 +108,7 @@ class ProduccionForm(forms.ModelForm):
                     'No se puede cambiar el producto de una producción que ya ingresó al inventario.',
                 )
 
+        # Sin producto no hay a qué sumar las unidades al terminar la producción.
         if estado == EstadoProduccion.TERMINADA and not nombre:
             self.add_error(
                 'producto_nombre',
@@ -108,6 +117,7 @@ class ProduccionForm(forms.ModelForm):
         return cleaned
 
     def save(self, commit=True):
+        """Guarda la producción asociándole el producto terminado (creándolo si no existe)."""
         produccion = super().save(commit=False)
         nombre = self.cleaned_data.get('producto_nombre')
         if nombre and not produccion.ingreso_registrado:
@@ -131,8 +141,10 @@ class DetalleMaterialForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """Limita el desplegable de insumos a los activos, para no usar insumos dados de baja."""
         super().__init__(*args, **kwargs)
-        # Solo insumos activos. Si la fila ya tiene un insumo que luego se desactivó, se mantiene.
+        # Solo insumos activos. Si la fila ya tiene un insumo que luego se desactivó, se mantiene
+        # para no perder el dato histórico de la lista de materiales.
         insumos = Producto.objects.filter(tipo=TipoProducto.INSUMO)
         if self.instance.pk and self.instance.producto_id:
             insumos = insumos.filter(Q(estado=EstadoProducto.ACTIVO) | Q(pk=self.instance.producto_id))
@@ -142,10 +154,12 @@ class DetalleMaterialForm(forms.ModelForm):
         self.fields['producto'].label_from_instance = lambda p: f'{p.nombre} ({p.unidad_medida})'
 
     def clean(self):
+        """No permite bajar la cantidad requerida por debajo de lo que ya se consumió."""
         # Nota: las filas marcadas para quitar se revisan en BaseDetalleMaterialFormSet,
         # porque Django ignora los errores de las filas que se van a borrar.
         cleaned = super().clean()
 
+        # Si ya se consumió más de lo nuevo requerido, el registro de consumo quedaría incoherente.
         requerida = cleaned.get('cantidad_requerida')
         if (
             requerida is not None
@@ -163,6 +177,7 @@ class BaseDetalleMaterialFormSet(BaseInlineFormSet):
     """Reglas que dependen de varias filas a la vez."""
 
     def clean(self):
+        """Revisa que no se repita un insumo en la lista de materiales."""
         # Se revisa antes de super().clean(), que de lo contrario muestra el mensaje genérico
         # de Django por el índice de unicidad.
         vistos = set()
@@ -171,6 +186,7 @@ class BaseDetalleMaterialFormSet(BaseInlineFormSet):
 
             if datos.get('DELETE'):
                 # Un material con consumo registrado no se puede quitar: el historial depende de él.
+                # Las filas sin consumo sí se pueden quitar y se saltan el resto de la revisión.
                 if form.instance.pk and form.instance.cantidad_utilizada > 0:
                     raise ValidationError(
                         f'"{form.instance.producto.nombre}" ya tiene {form.instance.cantidad_utilizada} '
@@ -181,6 +197,7 @@ class BaseDetalleMaterialFormSet(BaseInlineFormSet):
             producto = datos.get('producto')
             if producto is None:
                 continue
+            # Repetir el insumo duplicaría la cantidad en la lista; se pide una sola fila con el total.
             if producto.pk in vistos:
                 raise ValidationError(
                     'Un mismo insumo no puede aparecer dos veces. Usa una sola fila con la cantidad total.'
@@ -190,6 +207,8 @@ class BaseDetalleMaterialFormSet(BaseInlineFormSet):
         super().clean()
 
 
+# Formset que edita varias filas de materiales dentro del formulario de la producción.
+# can_delete permite quitar filas y extra=1 muestra siempre una fila vacía para agregar otra.
 DetalleMaterialFormSet = inlineformset_factory(
     Produccion,
     DetalleMaterial,
@@ -209,9 +228,11 @@ class ConsumoProduccionForm(forms.Form):
     """
 
     def __init__(self, *args, materiales, **kwargs):
+        """Crea una casilla de consumo por cada material recibido."""
         super().__init__(*args, **kwargs)
         self.materiales = list(materiales)
         for material in self.materiales:
+            # Lo que todavía falta consumir; nunca es negativo aunque se haya consumido de más.
             pendiente = max(material.cantidad_requerida - material.cantidad_utilizada, Decimal('0'))
             unidad = material.producto.unidad_medida
             self.fields[self.nombre_campo(material)] = forms.DecimalField(
@@ -237,6 +258,7 @@ class ConsumoProduccionForm(forms.Form):
 
     @staticmethod
     def nombre_campo(material):
+        """Nombre del campo HTML de un material; usa su pk para no confundir materiales repetidos."""
         return f'material_{material.pk}'
 
     def consumos(self):
@@ -259,6 +281,7 @@ class SelectConStock(forms.Select):
         super().__init__(*args, **kwargs)
 
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        """Agrega data-disponible y data-unidad a la opción cuando hay stock registrado."""
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
         pk = getattr(value, 'value', value)
         if pk in self.stock:
@@ -301,12 +324,15 @@ class ReporteFiltroForm(forms.Form):
     hasta = forms.DateField(label='Hasta', required=False, widget=forms.DateInput(attrs={'type': 'date'}))
 
     def clean_tipo(self):
+        """Si no se elige reporte, se usa el de existencias por defecto."""
         return self.cleaned_data.get('tipo') or 'existencias'
 
     def clean(self):
+        """Verifica que el rango de fechas tenga sentido (desde no puede ser posterior a hasta)."""
         cleaned = super().clean()
         desde = cleaned.get('desde')
         hasta = cleaned.get('hasta')
+        # Un rango invertido daría un reporte vacío sin explicación, por eso se avisa al usuario.
         if desde and hasta and desde > hasta:
             self.add_error('hasta', 'La fecha final no puede ser anterior a la inicial.')
         return cleaned
@@ -346,6 +372,7 @@ class HistorialFiltroForm(forms.Form):
     )
 
     def clean(self):
+        """Verifica que el rango de fechas del historial no esté invertido."""
         cleaned = super().clean()
         desde = cleaned.get('desde')
         hasta = cleaned.get('hasta')
@@ -391,10 +418,12 @@ class MovimientoForm(forms.Form):
     }
 
     def __init__(self, *args, tipo, **kwargs):
+        """Recibe el tipo (entrada o salida) para ajustar el placeholder y las validaciones."""
         self.tipo = tipo
         super().__init__(*args, **kwargs)
 
         # Solo productos activos. En una salida se muestra el stock disponible.
+        # Así el usuario ve cuánto puede sacar antes de enviar el formulario.
         productos = Producto.objects.filter(estado=EstadoProducto.ACTIVO).order_by('nombre')
         self.fields['producto'].queryset = productos
         self.fields['producto'].label_from_instance = self._etiqueta_producto
@@ -407,14 +436,17 @@ class MovimientoForm(forms.Form):
 
     @staticmethod
     def _etiqueta_producto(producto):
+        """Texto de cada opción del desplegable, con el stock disponible incluido."""
         return f'{producto.nombre} (disponible: {producto.cantidad_actual} {producto.unidad_medida})'
 
     def clean(self):
+        """Impide sacar más existencias de las que hay (solo en salidas)."""
         cleaned = super().clean()
         producto = cleaned.get('producto')
         cantidad = cleaned.get('cantidad')
 
         # Aviso temprano: sin el servicio, la salida se rechazaría igual.
+        # Aquí solo se muestra el error en el formulario; la regla final la aplica el servicio.
         if (
             self.tipo == TipoMovimiento.SALIDA
             and producto is not None
@@ -433,7 +465,7 @@ class ProductoForm(forms.ModelForm):
     """
     Formulario para registrar y modificar insumos y productos terminados.
 
-    La cantidad actual no aparece aquí: solo cambia con entradas y salidas (Fase 4).
+    La cantidad actual no aparece aquí: solo cambia con entradas y salidas.
     """
 
     class Meta:
@@ -463,13 +495,16 @@ class ProductoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """Quita el campo estado en los productos nuevos, que siempre empiezan activos."""
         super().__init__(*args, **kwargs)
         # Un producto nuevo empieza activo; el estado se cambia desde el listado o la edición.
         if self.instance.pk is None:
             self.fields.pop('estado')
 
     def clean_nombre(self):
+        """Valida el nombre: mínimo 2 caracteres y sin duplicados (sin distinguir mayúsculas)."""
         # Quita espacios sobrantes y evita nombres repetidos sin importar mayúsculas.
+        # Se excluye el propio producto para permitir guardarlo sin cambiar el nombre.
         nombre = ' '.join(self.cleaned_data['nombre'].split())
         if len(nombre) < 2:
             raise forms.ValidationError('El nombre debe tener al menos 2 caracteres.')
@@ -484,9 +519,11 @@ class ProductoForm(forms.ModelForm):
         return nombre
 
     def clean_unidad_medida(self):
+        """Guarda la unidad en minúsculas para que 'Metros' y 'metros' no se traten como distintas."""
         return self.cleaned_data['unidad_medida'].strip().lower()
 
     def clean(self):
+        """Valida el cambio de tipo: un insumo usado no puede convertirse en producto terminado."""
         cleaned = super().clean()
         # En clean() la instancia todavía tiene el tipo guardado en la base de datos.
         tipo_nuevo = cleaned.get('tipo')

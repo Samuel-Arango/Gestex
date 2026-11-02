@@ -1,4 +1,4 @@
-"""Pruebas del dashboard de inicio (Fase 8)."""
+"""Pruebas de la página de inicio (dashboard): indicadores, listas de reposición, movimientos recientes, producciones activas y permisos por rol."""
 from datetime import date
 from decimal import Decimal
 
@@ -28,6 +28,7 @@ def crear_producto(nombre, tipo=TipoProducto.INSUMO, existencias='0', stock_mini
 
 
 class DashboardTests(TestCase):
+    """Página de inicio: requiere sesión, muestra los indicadores y listas del taller, y oculta los bloques de inventario a roles sin permiso."""
 
     def setUp(self):
         self.operario = crear_usuario('op@taller.co', 'Operario Uno', ROL_OPERARIO)
@@ -96,6 +97,7 @@ class DashboardTests(TestCase):
         crear_producto('Tela secreta', existencias='1')
         self.client.force_login(invitado)
 
+        # Sin permisos de inventario, la vista no añade esos bloques al contexto.
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
         self.assertNotIn('total_insumos', r.context)
@@ -108,6 +110,7 @@ class DashboardTests(TestCase):
         self.assertIn('total_insumos', r.context)
 
     def test_menu_sin_enlaces_de_marcador(self):
+        # Las opciones sin implementar no deben aparecer como enlaces vacíos ni como texto.
         r = self.client.get(self.url)
         self.assertNotContains(r, 'href="#"')
         self.assertNotContains(r, 'Stock por almacén')

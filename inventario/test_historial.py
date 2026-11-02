@@ -1,4 +1,4 @@
-"""Pruebas del historial de movimientos (Fase 5): filtros, fechas, paginación y consultas."""
+"""Pruebas del historial de movimientos: acceso, orden, filtros (texto, material, tipo, producto y fechas), paginación, resumen y número de consultas."""
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -45,6 +45,7 @@ def fijar_fecha(mov, fecha):
 
 
 class BaseHistorialTests(TestCase):
+    """Crea un operario con sesión iniciada y tres productos (dos insumos y un terminado) para las pruebas del historial."""
 
     def setUp(self):
         self.operario = crear_usuario('operario@taller.co', 'Operario Uno')
@@ -56,6 +57,7 @@ class BaseHistorialTests(TestCase):
 
 
 class AccesoYListadoTests(BaseHistorialTests):
+    """Acceso al historial, orden del más reciente al más antiguo y datos visibles en cada fila."""
 
     def test_visitante_anonimo_es_redirigido(self):
         self.client.logout()
@@ -93,6 +95,7 @@ class AccesoYListadoTests(BaseHistorialTests):
 
 
 class FiltrosTests(BaseHistorialTests):
+    """Filtros combinables del historial: texto, tipo de material, tipo de movimiento y producto. Los valores inválidos se ignoran."""
 
     def setUp(self):
         super().setUp()
@@ -129,6 +132,7 @@ class FiltrosTests(BaseHistorialTests):
         self.assertContains(r, 'Mostrando solo movimientos de')
 
     def test_valores_invalidos_no_rompen_el_listado(self):
+        # Los filtros inválidos se ignoran y se muestran los 4 movimientos.
         r = self.client.get(self.url, {'tipo_material': 'basura', 'tipo_movimiento': 'x', 'producto': 'abc'})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(r.context['movimientos']), 4)
@@ -138,11 +142,13 @@ class FiltrosTests(BaseHistorialTests):
         self.assertContains(r, '<option value="salida" selected>')
 
     def test_limpiar_aparece_solo_con_filtros(self):
+        # El botón Limpiar solo se muestra cuando hay algún filtro activo.
         self.assertNotContains(self.client.get(self.url), 'Limpiar')
         self.assertContains(self.client.get(self.url, {'q': 'hilo'}), 'Limpiar')
 
 
 class FiltroPorFechaTests(BaseHistorialTests):
+    """Filtros de fecha desde y hasta: los límites son inclusivos, un rango invertido muestra error y un formato inválido también."""
 
     def setUp(self):
         super().setUp()
@@ -178,6 +184,7 @@ class FiltroPorFechaTests(BaseHistorialTests):
 
 
 class PaginacionYResumenTests(BaseHistorialTests):
+    """Paginación de 20 movimientos conservando los filtros, resumen calculado sobre todo el conjunto filtrado y número de consultas estable."""
 
     def test_pagina_de_20_y_conserva_los_filtros(self):
         for i in range(25):
@@ -217,6 +224,7 @@ class PaginacionYResumenTests(BaseHistorialTests):
 
 
 class EnlacesTests(BaseHistorialTests):
+    """Enlaces al historial desde el menú y desde la ficha del producto, y protección del historial: los movimientos no se pueden borrar desde el admin."""
 
     def test_menu_tiene_enlace_al_historial(self):
         r = self.client.get(reverse('dashboard:home'))
@@ -228,6 +236,7 @@ class EnlacesTests(BaseHistorialTests):
 
     def test_historial_no_permite_editar_ni_borrar(self):
         mov = movimiento(self.algodon, self.operario)
+        # El admin puede responder 302 o 403 según el permiso; en ambos casos el registro sigue existiendo.
         r = self.client.post(
             reverse('admin:inventario_movimientoinventario_delete', args=[mov.pk]),
         )

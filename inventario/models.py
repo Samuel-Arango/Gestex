@@ -8,7 +8,8 @@ Tablas:
 - MovimientoInventario: historial de entradas y salidas (no se edita ni se borra).
 
 Nota: la lógica para cambiar existencias (entradas y salidas) vive en
-inventario/services.py (Fase 4). Aquí solo se definen los datos y sus reglas básicas.
+inventario/services.py. Aquí solo se definen los datos y sus reglas básicas
+(validaciones, restricciones de la base de datos y el historial inmutable).
 """
 from decimal import Decimal
 
@@ -23,16 +24,22 @@ from django.db.models import F, Q
 # Opciones fijas (choices). Usar TextChoices evita escribir textos a mano.
 # ---------------------------------------------------------------------------
 class TipoProducto(models.TextChoices):
+    """Clasifica un Producto: material que se consume o artículo que se vende/entrega."""
+
     INSUMO = 'insumo', 'Insumo'
     PRODUCTO_TERMINADO = 'producto_terminado', 'Producto terminado'
 
 
 class EstadoProducto(models.TextChoices):
+    """Un producto inactivo se conserva en el historial, pero no admite nuevos movimientos."""
+
     ACTIVO = 'activo', 'Activo'
     INACTIVO = 'inactivo', 'Inactivo'
 
 
 class EstadoProduccion(models.TextChoices):
+    """Etapas por las que pasa una orden de confección."""
+
     # Los valores coinciden con el texto que ya guardaba la columna, así no hay que migrar datos.
     PENDIENTE = 'Pendiente', 'Pendiente'
     EN_PROCESO = 'En proceso', 'En proceso'
@@ -41,6 +48,8 @@ class EstadoProduccion(models.TextChoices):
 
 
 class TipoMovimiento(models.TextChoices):
+    """Sentido de un movimiento: entrada suma existencias y salida las resta."""
+
     ENTRADA = 'entrada', 'Entrada'
     SALIDA = 'salida', 'Salida'
 
@@ -53,8 +62,15 @@ class MovimientoInmutableError(Exception):
 # Producto
 # ---------------------------------------------------------------------------
 class Producto(models.Model):
-    """Insumo de confección o producto terminado."""
+    """
+    Insumo de confección o producto terminado.
 
+    La cantidad actual no se puede escribir desde formularios: solo cambia
+    mediante movimientos (ver inventario/services.py). Así el saldo siempre
+    coincide con el historial.
+    """
+
+    # db_index=True acelera las búsquedas y el orden por nombre.
     nombre = models.CharField('nombre', max_length=100, db_index=True)
     descripcion = models.TextField('descripción', blank=True)
     tipo = models.CharField('tipo', max_length=20, choices=TipoProducto.choices)
@@ -90,6 +106,8 @@ class Producto(models.Model):
         verbose_name = 'producto'
         verbose_name_plural = 'productos'
         ordering = ['nombre']
+        # Restricciones CHECK en la base de datos: aunque algún código falle,
+        # la base no aceptará existencias ni mínimos negativos.
         constraints = [
             models.CheckConstraint(
                 condition=Q(cantidad_actual__gte=0),
@@ -106,7 +124,7 @@ class Producto(models.Model):
 
     @property
     def en_alerta(self):
-        """True cuando hay que reponer (cantidad actual <= stock mínimo)."""
+        """True cuando hay que reponer (cantidad actual <= stock mínimo). Es el criterio de las alertas en pantalla y reportes."""
         return self.cantidad_actual <= self.stock_minimo
 
 
@@ -114,7 +132,13 @@ class Producto(models.Model):
 # Producción
 # ---------------------------------------------------------------------------
 class Produccion(models.Model):
-    """Orden de confección que consume insumos."""
+    """
+    Orden de confección que consume insumos.
+
+    Sus materiales se guardan en DetalleMaterial. Al pasar a 'Terminada' y tener
+    un producto terminado asignado, las unidades entran al inventario (ver
+    finalizar_produccion en inventario/services.py).
+    """
 
     descripcion = models.TextField('descripción')
     tipo = models.CharField('tipo de producción', max_length=50)
@@ -146,6 +170,7 @@ class Produccion(models.Model):
     ingreso_registrado = models.BooleanField(
         'ingreso al inventario registrado', default=False, editable=False,
     )
+    # PROTECT: no se puede borrar un usuario que tenga producciones a su nombre.
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -172,7 +197,9 @@ class Produccion(models.Model):
         return f'{self.tipo}: {self.descripcion[:40]}'
 
     def clean(self):
+        """Validación de formulario: la entrega no puede ser anterior al inicio."""
         super().clean()
+        # Se revisa aquí (además del CHECK de la base) para mostrar el error en el formulario.
         if self.fecha_inicio and self.fecha_entrega and self.fecha_entrega < self.fecha_inicio:
             raise ValidationError({
                 'fecha_entrega': 'La fecha de entrega no puede ser anterior a la fecha de inicio.',
@@ -180,7 +207,12 @@ class Produccion(models.Model):
 
 
 class DetalleMaterial(models.Model):
-    """Cuánto de cada insumo necesita una producción."""
+    """
+    Cuánto de cada insumo necesita una producción.
+
+    cantidad_requerida es lo planeado; cantidad_utilizada es lo que realmente
+    se consumió (se actualiza con las salidas ligadas a la producción).
+    """
 
     produccion = models.ForeignKey(
         Produccion,
@@ -232,6 +264,7 @@ class DetalleMaterial(models.Model):
         return f'{self.producto.nombre} para producción #{self.produccion_id}'
 
     def clean(self):
+        """Validación de formulario: solo se pueden usar insumos como material."""
         super().clean()
         if self.producto_id and self.producto.tipo != TipoProducto.INSUMO:
             raise ValidationError({'producto': 'Solo se pueden asignar insumos a una producción.'})
@@ -241,7 +274,13 @@ class DetalleMaterial(models.Model):
 # Movimientos (historial inmutable)
 # ---------------------------------------------------------------------------
 class MovimientoInventario(models.Model):
-    """Entrada o salida de un producto. Es un registro histórico: no se edita ni se borra."""
+    """
+    Entrada o salida de un producto. Es un registro histórico: no se edita ni se borra.
+
+    Para corregir un error se registra un movimiento nuevo que lo compense.
+    Los movimientos deben crearse con registrar_movimiento() (inventario/services.py),
+    que además actualiza las existencias dentro de una transacción.
+    """
 
     producto = models.ForeignKey(
         Producto,
@@ -292,7 +331,8 @@ class MovimientoInventario(models.Model):
         return f'{self.get_tipo_movimiento_display()} de {self.cantidad} - {self.producto.nombre}'
 
     def save(self, *args, **kwargs):
-        # Solo se permite crear registros nuevos.
+        """Permite solo crear el registro; cualquier intento de editarlo lanza error."""
+        # _state.adding es True solo mientras el objeto aún no existe en la base.
         if not self._state.adding:
             raise MovimientoInmutableError(
                 'Los movimientos no se editan. Registra un movimiento nuevo para corregir.'
@@ -300,4 +340,5 @@ class MovimientoInventario(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        """Bloquea el borrado: el historial de existencias debe quedar completo."""
         raise MovimientoInmutableError('Los movimientos no se eliminan del historial.')

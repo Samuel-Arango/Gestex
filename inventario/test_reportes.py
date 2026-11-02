@@ -1,4 +1,4 @@
-"""Pruebas de reportes y exportaciones (Fase 6)."""
+"""Pruebas de reportes (existencias, movimientos y catálogo), sus filtros y permisos, y las exportaciones CSV y PDF."""
 import csv
 from datetime import datetime
 from decimal import Decimal
@@ -46,6 +46,7 @@ def movimiento(producto, usuario, tipo, cantidad, fecha=None):
 
 
 class DatosDeReportesTests(TestCase):
+    """Cálculo de los datos de cada reporte: alertas, resúmenes, filtros de texto, tipo, estado y fechas, y la descripción de los filtros."""
 
     def setUp(self):
         self.usuario = crear_usuario('op@taller.co', 'Operario')
@@ -90,6 +91,7 @@ class DatosDeReportesTests(TestCase):
         movimiento(self.hilo, self.usuario, TipoMovimiento.SALIDA, '2.5')
 
         reporte = generar_reporte('movimientos', self.filtros())
+        # Desde la columna 3: entradas (20), salidas (7.5), balance (12.5) y número de movimientos (3).
         fila = next(f['valores'] for f in reporte['filas'] if f['valores'][0] == 'Hilo poliéster')
         self.assertEqual(fila[3:], ['20', '7.5', '12.5', '3'])
 
@@ -102,6 +104,7 @@ class DatosDeReportesTests(TestCase):
         movimiento(self.hilo, self.usuario, TipoMovimiento.ENTRADA, '10', fecha=datetime(2026, 1, 5).date())
         movimiento(self.hilo, self.usuario, TipoMovimiento.ENTRADA, '4', fecha=datetime(2026, 3, 9).date())
 
+        # Solo cuenta la entrada de enero (10); la de marzo queda fuera del rango.
         enero = generar_reporte('movimientos', self.filtros(desde=datetime(2026, 1, 1).date(),
                                                             hasta=datetime(2026, 1, 31).date()))
         self.assertEqual(enero['filas'][0]['valores'][3], '10')
@@ -127,14 +130,17 @@ class DatosDeReportesTests(TestCase):
 
 
 class SeguridadDeExportacionTests(TestCase):
+    """Protección contra inyección de fórmulas en hojas de cálculo: las celdas que empiezan por =, +, - o @ se neutralizan; los números y el texto normal no cambian."""
 
     def test_celdas_con_formulas_se_neutralizan(self):
+        # Excel interpretaría estas celdas como fórmulas; se les antepone una comilla simple.
         self.assertEqual(celda_segura('=HYPERLINK("http://x")'), "'=HYPERLINK(\"http://x\")")
         self.assertEqual(celda_segura('+cmd'), "'+cmd")
         self.assertEqual(celda_segura('@SUM(A1)'), "'@SUM(A1)")
         self.assertEqual(celda_segura('-texto'), "'-texto")
 
     def test_numeros_negativos_y_texto_normal_no_se_alteran(self):
+        # Un número negativo no es una fórmula y se deja igual; un texto que empieza por - sí se neutraliza.
         self.assertEqual(celda_segura('-3.00'), '-3.00')
         self.assertEqual(celda_segura('Tela algodón'), 'Tela algodón')
         self.assertEqual(celda_segura('12.50'), '12.50')
@@ -142,6 +148,7 @@ class SeguridadDeExportacionTests(TestCase):
 
     def test_nombre_malicioso_queda_neutralizado_en_el_csv(self):
         usuario = crear_usuario('op@taller.co', 'Operario')
+        # El nombre empieza por = y debe salir neutralizado en el CSV.
         crear_producto('=1+1', existencias='2')
         self.client.force_login(usuario)
         r = self.client.get(reverse('inventario:exportar_reporte', args=['csv']), {'tipo': 'existencias'})
@@ -151,6 +158,7 @@ class SeguridadDeExportacionTests(TestCase):
 
 
 class CsvTests(TestCase):
+    """Exportación CSV: BOM UTF-8, separador punto y coma, encabezados, mismos filtros que en pantalla y columnas del reporte de movimientos."""
 
     def setUp(self):
         self.usuario = crear_usuario('op@taller.co', 'Operario')
@@ -188,6 +196,7 @@ class CsvTests(TestCase):
 
 
 class PdfTests(TestCase):
+    """Exportación PDF: tipo de contenido, nombre de archivo y generación correcta aun sin datos o con textos que parecen etiquetas HTML."""
 
     def setUp(self):
         self.usuario = crear_usuario('op@taller.co', 'Operario')
@@ -222,6 +231,7 @@ class PdfTests(TestCase):
 
 
 class PantallaDeReportesTests(TestCase):
+    """Pantalla de reportes: reporte por defecto, validación de fechas, errores de exportación, enlaces con los filtros actuales, paginación y permisos por rol."""
 
     def setUp(self):
         self.usuario = crear_usuario('op@taller.co', 'Operario')
@@ -247,10 +257,12 @@ class PantallaDeReportesTests(TestCase):
         self.assertIsNone(r.context['reporte'])
 
     def test_exportacion_con_filtros_invalidos_no_descarga_nada(self):
+        # Un tipo de reporte desconocido no genera archivo: la respuesta es 400.
         r = self.client.get(reverse('inventario:exportar_reporte', args=['csv']), {'tipo': 'desconocido'})
         self.assertEqual(r.status_code, 400)
 
     def test_formato_inexistente_responde_404(self):
+        # xlsx no es un formato soportado: la ruta no existe y responde 404.
         self.assertEqual(self.client.get(reverse('inventario:exportar_reporte', args=['xlsx'])).status_code, 404)
 
     def test_pantalla_enlaza_las_exportaciones_con_los_mismos_filtros(self):
@@ -269,6 +281,7 @@ class PantallaDeReportesTests(TestCase):
         Rol.objects.get_or_create(nombre_rol='Invitado', defaults={'descripcion': 'Sin permisos.'})
         invitado = crear_usuario('invitado@taller.co', 'Invitado', 'Invitado')
         self.client.force_login(invitado)
+        # Sin permiso de reportes, tanto la pantalla como la exportación responden 403.
         self.assertEqual(self.client.get(self.url, {'tipo': 'existencias'}).status_code, 403)
         self.assertEqual(
             self.client.get(reverse('inventario:exportar_reporte', args=['pdf']), {'tipo': 'existencias'}).status_code,
@@ -276,6 +289,7 @@ class PantallaDeReportesTests(TestCase):
         )
 
     def test_permiso_del_reporte_de_movimientos(self):
+        # El rol Operario puede ver el reporte de movimientos; un rol sin permisos no ve ningún reporte.
         invitado = crear_usuario('x@taller.co', 'X', 'Operario')
         self.assertTrue(puede_ver_reporte(invitado, 'movimientos'))
         Rol.objects.get_or_create(nombre_rol='Invitado', defaults={'descripcion': 'Sin permisos.'})

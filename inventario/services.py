@@ -39,7 +39,7 @@ class ErrorMovimiento(Exception):
 
 
 class StockInsuficiente(ErrorMovimiento):
-    """Se intentó sacar más de lo disponible."""
+    """Se intentó sacar más de lo disponible. Es el caso típico que protege el servicio."""
 
 
 class ProductoNoDisponible(ErrorMovimiento):
@@ -47,6 +47,12 @@ class ProductoNoDisponible(ErrorMovimiento):
 
 
 def _validar_cantidad(cantidad):
+    """
+    Convierte la cantidad a Decimal y comprueba que sea un valor permitido.
+
+    Se usa Decimal (y no float) para no perder precisión con decimales como 0.1.
+    Se revisa también que no tenga más de 2 decimales, que coincida con la base.
+    """
     try:
         cantidad = Decimal(str(cantidad))
     except (InvalidOperation, TypeError, ValueError):
@@ -65,12 +71,15 @@ def _validar_cantidad(cantidad):
 
 def _registrar_consumo_en_produccion(produccion, producto, cantidad):
     """Suma la cantidad consumida al material de la producción (si el insumo está en su lista)."""
+    # select_for_update bloquea la fila del material mientras dura la transacción,
+    # para que dos salidas simultáneas no pierdan una de las sumas.
     detalle = (
         DetalleMaterial.objects.select_for_update()
         .filter(produccion=produccion, producto=producto)
         .first()
     )
     if detalle is not None:
+        # F() hace la suma dentro de la base de datos y evita leer y escribir un valor viejo.
         DetalleMaterial.objects.filter(pk=detalle.pk).update(
             cantidad_utilizada=F('cantidad_utilizada') + cantidad,
         )
@@ -79,6 +88,10 @@ def _registrar_consumo_en_produccion(produccion, producto, cantidad):
 def registrar_movimiento(*, producto, usuario, tipo, cantidad, motivo, produccion=None):
     """
     Registra una entrada o una salida y actualiza las existencias de forma segura.
+
+    Es la única función que cambia cantidad_actual. Todo ocurre dentro de una
+    transacción: o se guardan el cambio de existencias y el movimiento juntos,
+    o no se guarda nada.
 
     Args:
         producto: instancia de Producto (insumo o producto terminado).
@@ -95,11 +108,13 @@ def registrar_movimiento(*, producto, usuario, tipo, cantidad, motivo, produccio
         ErrorMovimiento (o una subclase) si el movimiento no se puede registrar.
         En ese caso no cambia nada en la base de datos.
     """
+    # Validaciones previas: si fallan, no se abre ninguna transacción.
     if tipo not in TipoMovimiento.values:
         raise ErrorMovimiento('El tipo de movimiento no es válido.')
 
     cantidad = _validar_cantidad(cantidad)
 
+    # El motivo es obligatorio: el historial debe explicar por qué cambió el stock.
     motivo = (motivo or '').strip()
     if not motivo:
         raise ErrorMovimiento('Indica el motivo del movimiento.')
@@ -107,8 +122,10 @@ def registrar_movimiento(*, producto, usuario, tipo, cantidad, motivo, produccio
     with transaction.atomic():
         # Bloquea la fila del producto hasta terminar la transacción.
         # Tiene efecto en MySQL y PostgreSQL; en SQLite se ignora y lo protege la base.
+        # Se relee el producto para trabajar con el saldo real, no con el que tenía el formulario.
         bloqueado = Producto.objects.select_for_update().get(pk=producto.pk)
 
+        # Un producto inactivo queda congelado: no admite entradas ni salidas.
         if bloqueado.estado != EstadoProducto.ACTIVO:
             raise ProductoNoDisponible(
                 f'"{bloqueado.nombre}" está inactivo. Actívalo para registrar movimientos.'
@@ -116,6 +133,8 @@ def registrar_movimiento(*, producto, usuario, tipo, cantidad, motivo, produccio
 
         if tipo == TipoMovimiento.SALIDA:
             # Solo resta si hay stock suficiente; la comprobación y el cambio son una sola operación.
+            # Esto evita que cantidad_actual quede negativa aunque dos usuarios saquen a la vez.
+            # filas es el número de registros actualizados: 0 significa que no alcanzó el stock.
             filas = Producto.objects.filter(
                 pk=bloqueado.pk,
                 cantidad_actual__gte=cantidad,
@@ -129,10 +148,12 @@ def registrar_movimiento(*, producto, usuario, tipo, cantidad, motivo, produccio
                     f'solicitado: {cantidad} {bloqueado.unidad_medida}.'
                 )
         else:
+            # Una entrada siempre suma; no hay riesgo de quedar en negativo.
             Producto.objects.filter(pk=bloqueado.pk).update(
                 cantidad_actual=F('cantidad_actual') + cantidad,
             )
 
+        # El historial se guarda en la misma transacción que el cambio de existencias.
         movimiento = MovimientoInventario.objects.create(
             producto=bloqueado,
             usuario=usuario,
@@ -146,7 +167,7 @@ def registrar_movimiento(*, producto, usuario, tipo, cantidad, motivo, produccio
         if produccion is not None and tipo == TipoMovimiento.SALIDA:
             _registrar_consumo_en_produccion(produccion, bloqueado, cantidad)
 
-    # Devuelve al llamador el producto con las existencias actualizadas.
+    # Refresca el objeto del llamador: así ve el saldo nuevo sin tener que recargarlo.
     producto.refresh_from_db(fields=['cantidad_actual'])
     return movimiento
 
@@ -201,12 +222,15 @@ def finalizar_produccion(produccion, usuario):
     Se ejecuta una sola vez: si ya se registró, no hace nada. Las unidades entran
     como una entrada normal, ligada a la producción, para que quede en el historial.
     """
+    # Estas validaciones se hacen antes de bloquear la fila, para no retener el bloqueo sin necesidad.
     if produccion.estado != EstadoProduccion.TERMINADA:
         raise ErrorMovimiento('La producción debe estar marcada como Terminada para ingresar sus unidades.')
     if produccion.producto_terminado_id is None:
         raise ErrorMovimiento('Indica el producto terminado de esta producción antes de cerrarla.')
 
     with transaction.atomic():
+        # Se vuelve a leer la producción con bloqueo: si dos peticiones llegan a la vez,
+        # la segunda ve ingreso_registrado=True y no duplica las unidades.
         bloqueada = Produccion.objects.select_for_update().get(pk=produccion.pk)
         if bloqueada.ingreso_registrado:
             return None
@@ -219,7 +243,9 @@ def finalizar_produccion(produccion, usuario):
             motivo=f'Producción #{bloqueada.pk} terminada',
             produccion=bloqueada,
         )
+        # Marca la producción para que la siguiente llamada no vuelva a sumar las unidades.
         Produccion.objects.filter(pk=bloqueada.pk).update(ingreso_registrado=True)
+        # Sincroniza el objeto que recibió la vista, para que muestre el estado nuevo.
         produccion.ingreso_registrado = True
         return movimiento
 
@@ -231,6 +257,7 @@ def registrar_consumo_produccion(produccion, usuario, consumos):
     consumos: {id_del_material: cantidad}. Las cantidades en cero se omiten.
     Si una sola salida falla (por ejemplo, falta stock), no se registra ninguna.
     """
+    # Una producción cerrada ya no puede recibir consumos nuevos.
     if produccion.estado in (EstadoProduccion.TERMINADA, EstadoProduccion.CANCELADA):
         raise ErrorMovimiento('Esta producción ya está cerrada; no se le pueden registrar más consumos.')
 
@@ -244,6 +271,8 @@ def registrar_consumo_produccion(produccion, usuario, consumos):
     )
 
     registrados = []
+    # Transacción externa: las salidas de registrar_movimiento() se unen a ella,
+    # así un error en la última salida deshace también las anteriores.
     with transaction.atomic():
         for material in materiales:
             registrados.append(registrar_movimiento(

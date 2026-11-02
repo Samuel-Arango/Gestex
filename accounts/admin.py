@@ -1,3 +1,4 @@
+"""Configuración del panel de administración de Django para roles y usuarios."""
 from django.contrib import admin
 
 from .models import Rol, Usuario
@@ -5,12 +6,16 @@ from .models import Rol, Usuario
 
 @admin.register(Rol)
 class RolAdmin(admin.ModelAdmin):
+    """Lista y busca los roles en el panel de administración."""
+
     list_display = ('id_rol', 'nombre_rol', 'descripcion')
     search_fields = ('nombre_rol',)
 
 
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
+    """Gestiona usuarios en el panel de administración, sin mostrar contraseñas."""
+
     # El hash de la contraseña nunca se muestra ni se edita desde el admin.
     fields = ('nombre', 'correo', 'id_rol', 'estado')
     list_display = ('id_usuario', 'nombre', 'correo', 'id_rol', 'estado')

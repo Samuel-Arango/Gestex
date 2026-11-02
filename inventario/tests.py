@@ -1,4 +1,5 @@
-﻿from datetime import date, timedelta
+﻿"""Pruebas de los modelos de inventario (productos, producciones, materiales y movimientos), del comando cargar_datos_prueba y del admin de solo lectura."""
+from datetime import date, timedelta
 from io import StringIO
 from decimal import Decimal
 
@@ -35,12 +36,14 @@ def crear_producto(nombre='Tela algodÃ³n', tipo=TipoProducto.INSUMO, **extra):
 
 
 class ProductoTests(TestCase):
+    """Reglas del modelo Producto: existencias iniciales en cero, no negativas en la base de datos, stock mínimo no negativo y alerta al llegar al mínimo."""
 
     def test_cantidad_inicial_es_cero(self):
         producto = crear_producto()
         self.assertEqual(producto.cantidad_actual, Decimal('0'))
 
     def test_base_de_datos_rechaza_existencias_negativas(self):
+        # Se prueba con update() para saltarse la validación de Python y comprobar la restricción de la base de datos.
         producto = crear_producto()
         with self.assertRaises(IntegrityError), transaction.atomic():
             Producto.objects.filter(pk=producto.pk).update(cantidad_actual=Decimal('-1'))
@@ -61,6 +64,7 @@ class ProductoTests(TestCase):
 
 
 class ProduccionTests(TestCase):
+    """Validaciones de Produccion: la fecha de entrega no puede ser anterior al inicio y la cantidad solicitada debe ser positiva."""
 
     def setUp(self):
         self.usuario = crear_usuario()
@@ -96,6 +100,7 @@ class ProduccionTests(TestCase):
 
 
 class DetalleMaterialTests(TestCase):
+    """Reglas de DetalleMaterial (lista de materiales): solo insumos, sin repetir un insumo en la misma producción y cantidad requerida positiva."""
 
     def setUp(self):
         self.usuario = crear_usuario()
@@ -132,6 +137,7 @@ class DetalleMaterialTests(TestCase):
 
 
 class MovimientoInventarioTests(TestCase):
+    """Movimientos de inventario: cantidad positiva, historial inmutable (no se edita ni se borra) y protección del producto que ya tiene movimientos."""
 
     def setUp(self):
         self.usuario = crear_usuario()
@@ -184,16 +190,19 @@ class MovimientoInventarioTests(TestCase):
 
     def test_no_se_puede_borrar_un_producto_con_movimientos(self):
         from django.db.models import ProtectedError
+        # Un producto con historial no se borra: se desactiva en su lugar.
         self._movimiento()
         with self.assertRaises(ProtectedError):
             self.producto.delete()
 
 
 class CargarDatosPruebaTests(TestCase):
+    """Comando cargar_datos_prueba: necesita un administrador activo y puede ejecutarse varias veces sin duplicar datos."""
 
     def test_requiere_un_administrador(self):
         from django.core.management import call_command
         from django.core.management.base import CommandError
+        # Sin administrador activo, el comando falla antes de crear nada.
         with self.assertRaises(CommandError):
             call_command('cargar_datos_prueba', stdout=StringIO())
 
@@ -201,6 +210,7 @@ class CargarDatosPruebaTests(TestCase):
         from django.core.management import call_command
         Usuario.objects.create_superuser('admin@taller.co', 'Admin', 'Clave-Segura-2026')
 
+        # Ejecutarlo dos veces no debe duplicar productos, producciones ni materiales.
         call_command('cargar_datos_prueba', stdout=StringIO())
         call_command('cargar_datos_prueba', stdout=StringIO())
 
@@ -214,7 +224,7 @@ class CargarDatosPruebaTests(TestCase):
 
 
 class AdminInventarioTests(TestCase):
-    """Comprueba que las pÃ¡ginas del admin cargan y que el historial es de solo lectura."""
+    """Admin de inventario: las listas cargan y el historial de movimientos es de solo lectura (no se crea, edita ni borra desde el admin)."""
 
     def setUp(self):
         self.admin = Usuario.objects.create_superuser('admin@taller.co', 'Admin', 'Clave-Segura-2026')

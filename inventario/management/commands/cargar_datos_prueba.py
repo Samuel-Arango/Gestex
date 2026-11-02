@@ -8,7 +8,7 @@ Crea insumos, productos terminados y una producción de ejemplo.
 Puede ejecutarse varias veces sin duplicar datos.
 
 Las existencias empiezan en 0. Las cantidades se registran con movimientos
-de entrada (Fase 4), para que siempre pasen por las mismas reglas de negocio.
+de entrada, para que siempre pasen por las mismas reglas de negocio.
 """
 from datetime import timedelta
 from decimal import Decimal
@@ -53,13 +53,14 @@ class Command(BaseCommand):
                 'No hay un administrador activo. Crea uno con: python manage.py createsuperuser'
             )
 
+        # Todo o nada: si falla un paso, no quedan datos a medias.
         with transaction.atomic():
             insumos = self._crear_productos(INSUMOS, TipoProducto.INSUMO)
             self._crear_productos(PRODUCTOS_TERMINADOS, TipoProducto.PRODUCTO_TERMINADO)
             self._crear_produccion_de_ejemplo(responsable, insumos)
 
         self.stdout.write(self.style.SUCCESS('Datos de prueba cargados correctamente.'))
-        self.stdout.write('Las existencias están en 0; regístralas con entradas en la Fase 4.')
+        self.stdout.write('Las existencias están en 0; regístralas con movimientos de entrada.')
 
     def _crear_productos(self, definiciones, tipo):
         creados = {}

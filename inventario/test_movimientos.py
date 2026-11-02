@@ -1,4 +1,4 @@
-"""Pruebas de entradas y salidas (Fase 4): reglas de negocio, transacciones y vistas."""
+"""Pruebas de entradas y salidas de inventario: reglas de existencias, validaciones, transacciones, formulario, vistas y liga con producciones."""
 from datetime import date
 from decimal import Decimal
 from unittest import mock
@@ -50,6 +50,7 @@ def recargar(producto):
 
 
 class BaseMovimientoTests(TestCase):
+    """Crea un operario y un insumo con 10 metros en existencias como punto de partida de cada prueba."""
 
     def setUp(self):
         self.operario = crear_usuario('operario@taller.co', 'Operario', ROL_OPERARIO)
@@ -70,6 +71,7 @@ class BaseMovimientoTests(TestCase):
 
 
 class ReglasDeExistenciasTests(BaseMovimientoTests):
+    """Las entradas suman a las existencias y las salidas las restan. Una salida no puede superar el stock disponible."""
 
     def test_entrada_suma_a_las_existencias(self):
         movimiento = self.entrada(Decimal('5'))
@@ -86,6 +88,7 @@ class ReglasDeExistenciasTests(BaseMovimientoTests):
         self.assertEqual(recargar(self.producto).cantidad_actual, Decimal('0'))
 
     def test_salida_mayor_que_el_stock_se_rechaza_con_mensaje_claro(self):
+        # 10.01 supera las existencias de 10; el mensaje debe indicar lo disponible.
         with self.assertRaises(StockInsuficiente) as contexto:
             self.salida(Decimal('10.01'))
         self.assertIn('Disponible: 10.00 metros', str(contexto.exception))
@@ -98,6 +101,7 @@ class ReglasDeExistenciasTests(BaseMovimientoTests):
         self.assertEqual(MovimientoInventario.objects.count(), antes)
 
     def test_producto_sin_existencias_no_admite_salidas(self):
+        # Con 0 existencias, ni siquiera una salida mínima puede registrarse.
         vacio = crear_producto('Hilo', existencias='0')
         with self.assertRaises(StockInsuficiente):
             self.salida(Decimal('0.01'), producto=vacio)
@@ -114,8 +118,10 @@ class ReglasDeExistenciasTests(BaseMovimientoTests):
 
 
 class ValidacionesDelServicioTests(BaseMovimientoTests):
+    """Validaciones de registrar_movimiento: cantidad positiva, finita y con no más de dos decimales; motivo obligatorio y tipo de movimiento válido."""
 
     def test_cantidades_invalidas_no_cambian_nada(self):
+        # Cero, negativos, texto, valores especiales, más de dos decimales y cantidades fuera de rango.
         casos = [
             Decimal('0'), Decimal('-3'), 'abc', None, Decimal('NaN'), Decimal('Infinity'),
             Decimal('1.001'), Decimal('999999999'),
@@ -128,6 +134,7 @@ class ValidacionesDelServicioTests(BaseMovimientoTests):
         self.assertEqual(MovimientoInventario.objects.count(), 0)
 
     def test_cantidad_acepta_texto_con_decimales(self):
+        # Desde el formulario la cantidad llega como texto; debe convertirse sin perder decimales.
         self.entrada('2.5')
         self.assertEqual(recargar(self.producto).cantidad_actual, Decimal('12.5'))
 
@@ -147,6 +154,7 @@ class ValidacionesDelServicioTests(BaseMovimientoTests):
 
 
 class AtomicidadTests(BaseMovimientoTests):
+    """El movimiento y la actualización de existencias se guardan en una misma transacción: si uno falla, el otro se revierte."""
 
     def test_si_falla_el_historial_no_cambian_las_existencias(self):
         # Si la línea de historial falla, la actualización de existencias debe revertirse.
@@ -163,6 +171,7 @@ class AtomicidadTests(BaseMovimientoTests):
 
 
 class StockObsoletoTests(BaseMovimientoTests):
+    """El servicio vuelve a leer las existencias desde la base de datos y no confía en el valor que vio el formulario. Nunca deja existencias negativas."""
 
     def test_el_servicio_no_confia_en_el_stock_que_ve_el_formulario(self):
         # El formulario lee 10. Mientras el usuario escribe, otra salida deja 2.
@@ -191,6 +200,7 @@ class StockObsoletoTests(BaseMovimientoTests):
 
 
 class LigaConProduccionTests(BaseMovimientoTests):
+    """Movimientos ligados a una producción: las salidas suman al material utilizado, pero las entradas y los insumos que no están en la lista de materiales no cuentan como consumo."""
 
     def setUp(self):
         super().setUp()
@@ -228,6 +238,7 @@ class LigaConProduccionTests(BaseMovimientoTests):
 
 
 class FormularioMovimientoTests(BaseMovimientoTests):
+    """MovimientoForm: solo ofrece productos activos, limita las salidas al stock disponible (las entradas no), exige cantidad positiva y motivo, y muestra el stock en cada opción."""
 
     def datos(self, **cambios):
         datos = {'producto': self.producto.pk, 'cantidad': '3', 'motivo': 'Consumo', 'produccion': ''}
@@ -268,6 +279,7 @@ class FormularioMovimientoTests(BaseMovimientoTests):
 
 
 class VistasMovimientoTests(BaseMovimientoTests):
+    """Vistas de entrada y salida: acceso, preselección de producto, registro por POST, mensajes de error, permisos del administrador y botones de la ficha. Los movimientos no se editan desde el admin."""
 
     def setUp(self):
         super().setUp()
@@ -345,6 +357,7 @@ class VistasMovimientoTests(BaseMovimientoTests):
         )
         admin = crear_usuario('admin@taller.co', 'Admin', ROL_ADMINISTRADOR)
         self.client.force_login(admin)
+        # Aunque se envíen cambios, el admin responde 403: el movimiento es inmutable.
         url = reverse('admin:inventario_movimientoinventario_change', args=[movimiento.pk])
         r = self.client.post(url, {'motivo': 'Cambio indebido', 'cantidad': '99', 'producto': self.producto.pk,
                                    'usuario': self.operario.pk, 'tipo_movimiento': 'entrada'})

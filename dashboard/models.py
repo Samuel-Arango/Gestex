@@ -1,3 +1,3 @@
 from django.db import models
 
-# Create your models here.
+# Esta app no define modelos propios: el dashboard solo lee datos de inventario.

@@ -1,3 +1,8 @@
+/*
+ * Menú lateral del panel (solo interfaz).
+ * En pantallas pequeñas abre y cierra la barra lateral con el botón del encabezado,
+ * y la cierra al tocar fuera de ella.
+ */
 const sidebar = document.getElementById('sidebar');
 const toggle = document.getElementById('sidebarToggle');
 
